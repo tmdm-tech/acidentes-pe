@@ -13,7 +13,7 @@ pip install -r requirements.txt
 Inicie o servidor com:
 
 ```bash
-gunicorn server:app --bind 0.0.0.0:$PORT
+gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
-> Nota: certifique-se que sua aplicação expõe `app` no módulo `server`.
+> Nota: certifique-se que sua aplicação expõe `app` no módulo `app`.
