@@ -6,11 +6,14 @@ from datetime import datetime
 import socket
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
 
 # Arquivo para armazenar acidentes
 ACCIDENTS_FILE = 'accidents.json'
 WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
+MAX_PHOTOS = 5
+MAX_PHOTO_CHARS = 1_200_000
 
 def load_accidents():
     if os.path.exists(ACCIDENTS_FILE):
@@ -55,13 +58,29 @@ def get_accidents():
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
 
         # Validar dados obrigatórios
         required_fields = ['endereco', 'latitude', 'longitude', 'nomeNotificante', 'cpf', 'descricao']
         for field in required_fields:
             if field not in data or not str(data[field]).strip():
                 return jsonify({'error': f'Campo obrigatório: {field}'}), 400
+
+        raw_photos = data.get('fotos', [])
+        if raw_photos is None:
+            raw_photos = []
+        if not isinstance(raw_photos, list):
+            return jsonify({'error': 'Campo fotos deve ser uma lista'}), 400
+        if len(raw_photos) > MAX_PHOTOS:
+            return jsonify({'error': f'Maximo de {MAX_PHOTOS} fotos por registro'}), 400
+
+        photos = []
+        for photo in raw_photos:
+            if not isinstance(photo, str) or not photo.startswith('data:image/'):
+                return jsonify({'error': 'Formato de foto invalido'}), 400
+            if len(photo) > MAX_PHOTO_CHARS:
+                return jsonify({'error': 'Foto muito grande; reduza a qualidade/tamanho'}), 400
+            photos.append(photo)
 
         # Criar acidente
         accident = {
@@ -72,9 +91,9 @@ def add_accident():
             'nomeNotificante': data['nomeNotificante'].strip(),
             'cpf': data['cpf'].strip(),
             'descricao': data['descricao'].strip(),
-            'fotos': data.get('fotos', []),
+            'fotos': photos,
             'dataHora': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
-            'photoCount': len(data.get('fotos', []))
+            'photoCount': len(photos)
         }
 
         # Salvar acidente

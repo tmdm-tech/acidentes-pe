@@ -6,13 +6,15 @@
   <title>ObservaTransito PE</title>
   <style>
     :root {
-      --bg-1: #0b3c5d;
-      --bg-2: #328cc1;
+      --amarelo: #facc15;
+      --azul: #1d4ed8;
+      --verde: #15803d;
+      --vermelho: #dc2626;
       --card: #ffffff;
       --text: #0f172a;
       --muted: #475569;
-      --ok: #0f766e;
-      --danger: #b91c1c;
+      --ok: #15803d;
+      --danger: #dc2626;
       --line: #e2e8f0;
     }
 
@@ -22,12 +24,12 @@
       margin: 0;
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at 10% 10%, #dff3ff 0%, #cce7ff 20%, #f8fbff 55%, #eef6ff 100%);
+      background: linear-gradient(160deg, #fffde8 0%, #eaf2ff 45%, #eefcf0 100%);
       min-height: 100vh;
     }
 
     .hero {
-      background: linear-gradient(130deg, var(--bg-1), var(--bg-2));
+      background: linear-gradient(115deg, var(--amarelo) 0%, var(--azul) 35%, var(--verde) 65%, var(--vermelho) 100%);
       color: #fff;
       padding: 32px 18px;
       text-align: center;
@@ -44,6 +46,15 @@
       margin: 8px 0 0;
       opacity: 0.94;
       font-size: 1rem;
+    }
+
+    .palette {
+      margin: 12px auto 0;
+      width: min(420px, 90%);
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--amarelo), var(--azul), var(--verde), var(--vermelho));
+      border: 1px solid rgba(255, 255, 255, 0.65);
     }
 
     .container {
@@ -115,11 +126,15 @@
       color: #fff;
       font-weight: 600;
       cursor: pointer;
-      background: #0f766e;
+      background: var(--verde);
     }
 
     button.secondary {
-      background: #1d4ed8;
+      background: var(--azul);
+    }
+
+    button.warn {
+      background: var(--vermelho);
     }
 
     button:disabled {
@@ -135,6 +150,34 @@
 
     .status.ok { color: var(--ok); }
     .status.error { color: var(--danger); }
+
+    .photo-help {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .preview-grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+    }
+
+    .preview-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f8fafc;
+      aspect-ratio: 1 / 1;
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
     table {
       width: 100%;
@@ -177,6 +220,7 @@
   <header class="hero">
     <h1>ObservaTransito PE</h1>
     <p>Reporte de acidentes com registro centralizado</p>
+    <div class="palette" aria-hidden="true"></div>
   </header>
 
   <main class="container">
@@ -208,6 +252,12 @@
             <label for="descricao">Descricao</label>
             <textarea id="descricao" required></textarea>
           </div>
+          <div class="field full">
+            <label for="fotos">Fotos do sinistro</label>
+            <input id="fotos" type="file" accept="image/*" multiple>
+            <div class="photo-help">Selecione ate 5 fotos. As imagens sao compactadas antes do envio.</div>
+            <div id="preview" class="preview-grid"></div>
+          </div>
         </div>
 
         <div class="actions">
@@ -232,6 +282,7 @@
               <th>Endereco</th>
               <th>Notificante</th>
               <th>Coordenadas</th>
+              <th>Fotos</th>
               <th>Descricao</th>
             </tr>
           </thead>
@@ -250,6 +301,52 @@
     const table = document.getElementById('table');
     const rows = document.getElementById('rows');
     const empty = document.getElementById('empty');
+    const photosInput = document.getElementById('fotos');
+    const preview = document.getElementById('preview');
+
+    let encodedPhotos = [];
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function compressImage(dataUrl, quality = 0.72, maxSide = 1280) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Falha ao processar imagem'));
+        img.src = dataUrl;
+      });
+    }
+
+    function renderPreview() {
+      preview.innerHTML = '';
+      encodedPhotos.forEach((src, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'preview-item';
+        const img = document.createElement('img');
+        img.alt = 'Foto ' + (idx + 1);
+        img.src = src;
+        wrapper.appendChild(img);
+        preview.appendChild(wrapper);
+      });
+    }
 
     function setStatus(message, type) {
       statusEl.textContent = message;
@@ -278,6 +375,7 @@
             <td>${item.endereco || '-'}</td>
             <td>${item.nomeNotificante || '-'}</td>
             <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
+            <td>${item.photoCount || (Array.isArray(item.fotos) ? item.fotos.length : 0)}</td>
             <td>${item.descricao || '-'}</td>
           `;
           rows.appendChild(tr);
@@ -312,6 +410,34 @@
 
     btnRefresh.addEventListener('click', loadAccidents);
 
+    photosInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length > 5) {
+        setStatus('Selecione no maximo 5 fotos.', 'error');
+        photosInput.value = '';
+        encodedPhotos = [];
+        renderPreview();
+        return;
+      }
+
+      try {
+        setStatus('Processando fotos...', '');
+        const prepared = [];
+        for (const file of files) {
+          const dataUrl = await fileToDataUrl(file);
+          const compressed = await compressImage(dataUrl);
+          prepared.push(compressed);
+        }
+        encodedPhotos = prepared;
+        renderPreview();
+        setStatus(`${encodedPhotos.length} foto(s) pronta(s) para envio.`, 'ok');
+      } catch (err) {
+        encodedPhotos = [];
+        renderPreview();
+        setStatus('Erro ao processar fotos: ' + err.message, 'error');
+      }
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       btnSubmit.disabled = true;
@@ -324,7 +450,7 @@
         nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
         cpf: document.getElementById('cpf').value.trim(),
         descricao: document.getElementById('descricao').value.trim(),
-        fotos: []
+        fotos: encodedPhotos
       };
 
       try {
@@ -338,6 +464,8 @@
         if (!response.ok) throw new Error(body.error || 'Falha ao salvar');
 
         form.reset();
+        encodedPhotos = [];
+        renderPreview();
         setStatus('Reporte salvo com sucesso.', 'ok');
         loadAccidents();
       } catch (err) {
