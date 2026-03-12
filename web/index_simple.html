@@ -6,6 +6,7 @@
   <title>ObservaTransito PE</title>
   <meta name="theme-color" content="#1d4ed8">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <style>
     :root {
       --amarelo: #facc15;
@@ -240,6 +241,7 @@
       border-radius: 12px;
       overflow: hidden;
       background: #f8fafc;
+      position: relative;
     }
 
     .map-caption {
@@ -252,32 +254,60 @@
       width: 100%;
       height: 260px;
       display: block;
-      background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
-      cursor: crosshair;
+      background: #dbeafe;
     }
 
-    .sea {
-      fill: #dbeafe;
-    }
-
-    .state {
-      fill: #bfdbfe;
-      stroke: #1e3a8a;
-      stroke-width: 3;
-    }
-
-    .state-label {
-      font-size: 16px;
+    .map-live {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
       font-weight: 700;
-      fill: #1e3a8a;
-      letter-spacing: 0.6px;
+      color: #1e3a8a;
     }
 
-    .map-marker {
-      fill: #dc2626;
-      stroke: #fff;
-      stroke-width: 2;
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      border-radius: 999px;
+      margin-right: 6px;
+      background: #dc2626;
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+      animation: pulse 1.3s infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+      70% { box-shadow: 0 0 0 9px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+
+    .stopwatch {
+      margin-top: 12px;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      background: #eff6ff;
+      padding: 10px;
+    }
+
+    .stopwatch h3 {
+      margin: 0 0 6px;
+      font-size: 0.96rem;
+      color: #1e3a8a;
+    }
+
+    .stopwatch-time {
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: #1e3a8a;
     }
 
     .offline-chip {
@@ -361,16 +391,16 @@
             <input id="longitude" required>
           </div>
           <div class="field full">
-            <label>Mapa de Pernambuco (clique para marcar o ponto)</label>
+            <label>Mapa de Pernambuco em tempo real</label>
             <div class="map-box">
-              <svg id="pe-map" viewBox="0 0 520 300" aria-label="Mapa de Pernambuco">
-                <rect class="sea" x="0" y="0" width="520" height="300"></rect>
-                <path class="state" d="M46 197 L70 154 L124 136 L140 110 L192 94 L255 87 L300 65 L351 63 L398 88 L429 126 L465 135 L476 160 L458 194 L433 203 L408 235 L365 239 L323 258 L282 249 L243 255 L198 247 L151 250 L118 233 L74 229 Z"></path>
-                <text class="state-label" x="188" y="168">Pernambuco</text>
-                <circle id="map-marker" class="map-marker" cx="-20" cy="-20" r="7"></circle>
-              </svg>
+              <div id="pe-map" aria-label="Mapa de Pernambuco"></div>
+              <div class="map-live"><span class="live-dot"></span>tempo real</div>
             </div>
-            <div class="map-caption">Ao tocar no mapa, latitude e longitude sao preenchidas automaticamente com aproximacao da regiao clicada.</div>
+            <div class="map-caption">Clique no mapa para ajustar o ponto de marcacao ou use o GPS para centralizar sua posicao atual.</div>
+            <div class="stopwatch">
+              <h3>Cronometro do registro em andamento</h3>
+              <div id="live-timer" class="stopwatch-time">00h 00m 00s</div>
+            </div>
           </div>
           <div class="field full">
             <label for="descricao">Descricao</label>
@@ -385,7 +415,7 @@
         </div>
 
         <div class="actions">
-          <button type="button" class="secondary" id="btn-location">Usar localizacao atual</button>
+          <button type="button" class="secondary" id="btn-location">Atualizar GPS em tempo real</button>
           <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
           <button type="submit" id="btn-submit">Salvar reporte</button>
         </div>
@@ -427,6 +457,7 @@
     </section>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const form = document.getElementById('accident-form');
     const statusEl = document.getElementById('status');
@@ -444,17 +475,22 @@
     const installStatus = document.getElementById('install-status');
     const offlineInfo = document.getElementById('offline-info');
     const peMap = document.getElementById('pe-map');
-    const mapMarker = document.getElementById('map-marker');
     const latInput = document.getElementById('latitude');
     const lonInput = document.getElementById('longitude');
+    const liveTimerEl = document.getElementById('live-timer');
 
     let encodedPhotos = [];
     let pendingInstallPrompt = null;
     let timerInterval = null;
+    let registrationTimerInterval = null;
+    let registrationStartedAt = Date.now();
+    let leafletMap = null;
+    let leafletMarker = null;
+    let leafletAccuracyCircle = null;
+    let gpsWatchId = null;
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
 
-    // Limites geograficos aproximados de Pernambuco para mapeamento visual.
     const PE_BOUNDS = {
       latMin: -9.50,
       latMax: -7.15,
@@ -581,36 +617,118 @@
       }
     }
 
-    function mapClickToCoords(clientX, clientY) {
-      const rect = peMap.getBoundingClientRect();
-      const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-      const yRatio = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    function initLeafletMap() {
+      if (typeof L === 'undefined' || leafletMap) return;
 
-      const lon = PE_BOUNDS.lonMin + xRatio * (PE_BOUNDS.lonMax - PE_BOUNDS.lonMin);
-      const lat = PE_BOUNDS.latMax - yRatio * (PE_BOUNDS.latMax - PE_BOUNDS.latMin);
-      return {
-        lat: lat.toFixed(6),
-        lon: lon.toFixed(6),
-        x: xRatio,
-        y: yRatio
-      };
+      const bounds = L.latLngBounds(
+        [PE_BOUNDS.latMin, PE_BOUNDS.lonMin],
+        [PE_BOUNDS.latMax, PE_BOUNDS.lonMax]
+      );
+
+      leafletMap = L.map('pe-map', {
+        zoomControl: true,
+        minZoom: 7,
+        maxZoom: 17,
+        maxBounds: bounds.pad(0.2)
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(leafletMap);
+
+      leafletMap.fitBounds(bounds);
+
+      leafletMap.on('click', (event) => {
+        setPointOnMap(event.latlng.lat, event.latlng.lng, true);
+        setStatus('Ponto marcado no mapa de Pernambuco.', 'ok');
+      });
     }
 
-    function coordsToMapPoint(lat, lon) {
-      const xRatio = (lon - PE_BOUNDS.lonMin) / (PE_BOUNDS.lonMax - PE_BOUNDS.lonMin);
-      const yRatio = (PE_BOUNDS.latMax - lat) / (PE_BOUNDS.latMax - PE_BOUNDS.latMin);
-      return {
-        x: Math.min(1, Math.max(0, xRatio)),
-        y: Math.min(1, Math.max(0, yRatio))
-      };
+    function setPointOnMap(lat, lon, recenter) {
+      const latNum = Number(lat);
+      const lonNum = Number(lon);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return;
+
+      latInput.value = latNum.toFixed(6);
+      lonInput.value = lonNum.toFixed(6);
+
+      if (!leafletMap) return;
+
+      if (!leafletMarker) {
+        leafletMarker = L.marker([latNum, lonNum]).addTo(leafletMap);
+      } else {
+        leafletMarker.setLatLng([latNum, lonNum]);
+      }
+
+      if (recenter) {
+        leafletMap.setView([latNum, lonNum], Math.max(leafletMap.getZoom(), 11));
+      }
     }
 
-    function placeMarkerByRatio(xRatio, yRatio) {
-      const vb = peMap.viewBox.baseVal;
-      const x = vb.x + vb.width * xRatio;
-      const y = vb.y + vb.height * yRatio;
-      mapMarker.setAttribute('cx', String(x));
-      mapMarker.setAttribute('cy', String(y));
+    function formatStopwatch() {
+      const elapsed = Date.now() - registrationStartedAt;
+      liveTimerEl.textContent = formatElapsed(elapsed);
+    }
+
+    function resetStopwatch() {
+      registrationStartedAt = Date.now();
+      formatStopwatch();
+    }
+
+    function startStopwatch() {
+      formatStopwatch();
+      if (registrationTimerInterval) clearInterval(registrationTimerInterval);
+      registrationTimerInterval = setInterval(formatStopwatch, 1000);
+    }
+
+    function getCurrentStopwatchSeconds() {
+      return Math.max(0, Math.floor((Date.now() - registrationStartedAt) / 1000));
+    }
+
+    function startLiveGpsTracking() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
+        return;
+      }
+
+      if (gpsWatchId !== null) {
+        setStatus('GPS em tempo real ja esta ativo.', 'ok');
+        return;
+      }
+
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setPointOnMap(lat, lon, true);
+
+          if (leafletMap) {
+            const radius = Math.max(8, Number(pos.coords.accuracy || 15));
+            if (!leafletAccuracyCircle) {
+              leafletAccuracyCircle = L.circle([lat, lon], {
+                radius,
+                color: '#1d4ed8',
+                fillColor: '#60a5fa',
+                fillOpacity: 0.18,
+                weight: 1
+              }).addTo(leafletMap);
+            } else {
+              leafletAccuracyCircle.setLatLng([lat, lon]);
+              leafletAccuracyCircle.setRadius(radius);
+            }
+          }
+        },
+        (err) => {
+          setStatus('Nao foi possivel ativar GPS em tempo real: ' + err.message, 'error');
+          if (gpsWatchId !== null) {
+            navigator.geolocation.clearWatch(gpsWatchId);
+            gpsWatchId = null;
+          }
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 4000 }
+      );
+
+      setStatus('GPS em tempo real ativado.', 'ok');
     }
 
     function getTimestampFromItem(item) {
@@ -739,45 +857,18 @@
     }
 
     btnLocation.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
-        return;
-      }
-
-      setStatus('Capturando localizacao...', '');
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          latInput.value = String(pos.coords.latitude);
-          lonInput.value = String(pos.coords.longitude);
-          const point = coordsToMapPoint(Number(latInput.value), Number(lonInput.value));
-          placeMarkerByRatio(point.x, point.y);
-          setStatus('Localizacao preenchida com sucesso.', 'ok');
-        },
-        (err) => {
-          setStatus('Nao foi possivel obter localizacao: ' + err.message, 'error');
-        },
-        { enableHighAccuracy: true, timeout: 12000 }
-      );
+      startLiveGpsTracking();
     });
 
     btnRefresh.addEventListener('click', loadAccidents);
     btnSync.addEventListener('click', syncOfflineReports);
-
-    peMap.addEventListener('click', (event) => {
-      const point = mapClickToCoords(event.clientX, event.clientY);
-      latInput.value = point.lat;
-      lonInput.value = point.lon;
-      placeMarkerByRatio(point.x, point.y);
-      setStatus('Ponto marcado no mapa de Pernambuco.', 'ok');
-    });
 
     [latInput, lonInput].forEach((input) => {
       input.addEventListener('change', () => {
         const lat = Number(latInput.value);
         const lon = Number(lonInput.value);
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          const p = coordsToMapPoint(lat, lon);
-          placeMarkerByRatio(p.x, p.y);
+          setPointOnMap(lat, lon, false);
         }
       });
     });
@@ -875,6 +966,7 @@
         nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
         cpf: document.getElementById('cpf').value.trim(),
         descricao: document.getElementById('descricao').value.trim(),
+        tempoRegistroSegundos: getCurrentStopwatchSeconds(),
         fotos: encodedPhotos
       };
 
@@ -886,6 +978,7 @@
           form.reset();
           encodedPhotos = [];
           renderPreview();
+          resetStopwatch();
           setStatus('Sem internet: registro salvo offline e aguardando sincronizacao.', 'warn');
           await loadAccidents();
           return;
@@ -903,6 +996,7 @@
         form.reset();
         encodedPhotos = [];
         renderPreview();
+        resetStopwatch();
         setStatus('Reporte salvo com sucesso.', 'ok');
         loadAccidents();
       } catch (err) {
@@ -912,6 +1006,7 @@
         form.reset();
         encodedPhotos = [];
         renderPreview();
+        resetStopwatch();
         setStatus('Falha de rede: registro salvo offline para sincronizar depois.', 'warn');
         await loadAccidents();
       } finally {
@@ -920,8 +1015,9 @@
     });
 
     updateOfflineInfo();
-    const firstPoint = coordsToMapPoint(-8.05, -34.9);
-    placeMarkerByRatio(firstPoint.x, firstPoint.y);
+    initLeafletMap();
+    setPointOnMap(-8.050000, -34.900000, true);
+    startStopwatch();
     loadAccidents();
   </script>
 </body>

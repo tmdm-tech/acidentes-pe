@@ -82,6 +82,13 @@ def add_accident():
                 return jsonify({'error': 'Foto muito grande; reduza a qualidade/tamanho'}), 400
             photos.append(photo)
 
+        raw_elapsed = data.get('tempoRegistroSegundos', 0)
+        elapsed_seconds = 0
+        try:
+            elapsed_seconds = max(0, int(raw_elapsed))
+        except (TypeError, ValueError):
+            elapsed_seconds = 0
+
         # Criar acidente
         accident = {
             'id': str(int(datetime.now().timestamp() * 1000)),
@@ -92,6 +99,7 @@ def add_accident():
             'cpf': data['cpf'].strip(),
             'descricao': data['descricao'].strip(),
             'fotos': photos,
+            'tempoRegistroSegundos': elapsed_seconds,
             'dataHora': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
             'photoCount': len(photos)
         }
