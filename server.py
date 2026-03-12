@@ -9,6 +9,8 @@ app = Flask(__name__)
 
 # Arquivo para armazenar acidentes
 ACCIDENTS_FILE = 'accidents.json'
+WEB_DIR = 'web'
+APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 
 def load_accidents():
     if os.path.exists(ACCIDENTS_FILE):
@@ -22,11 +24,28 @@ def save_accidents(accidents):
 
 @app.route('/')
 def index():
-    return send_from_directory('web', 'index_simple.html')
+    if os.path.exists(os.path.join(WEB_DIR, 'index_simple.html')):
+        return send_from_directory(WEB_DIR, 'index_simple.html')
+    return jsonify({
+        'status': 'ok',
+        'service': 'acidentes-pe',
+        'message': 'API online. Frontend estatico nao encontrado neste deploy.',
+        'endpoints': ['/health', '/version', '/api/accidents']
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy'}), 200
+
+@app.route('/version')
+def version():
+    return jsonify({'version': APP_VERSION}), 200
 
 @app.route('/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('web', filename)
+    if os.path.exists(os.path.join(WEB_DIR, filename)):
+        return send_from_directory(WEB_DIR, filename)
+    return jsonify({'error': 'Arquivo nao encontrado'}), 404
 
 @app.route('/api/accidents', methods=['GET'])
 def get_accidents():
