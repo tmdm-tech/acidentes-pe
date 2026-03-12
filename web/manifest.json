@@ -1,0 +1,17 @@
+{
+  "name": "ObservaTransito PE",
+  "short_name": "ObservaPE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "description": "Registro de sinistros de transito em Pernambuco",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

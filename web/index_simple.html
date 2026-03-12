@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ObservaTransito PE</title>
+  <meta name="theme-color" content="#1d4ed8">
+  <link rel="manifest" href="/manifest.json">
   <style>
     :root {
       --amarelo: #facc15;
@@ -157,6 +159,33 @@
       margin-top: 4px;
     }
 
+    .install-box {
+      background: #fff;
+      border: 1px dashed #93c5fd;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .install-box p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #334155;
+    }
+
+    .timer-chip {
+      display: inline-block;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      white-space: nowrap;
+    }
+
     .preview-grid {
       margin-top: 8px;
       display: grid;
@@ -177,6 +206,30 @@
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+
+    .thumbs {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      min-width: 88px;
+    }
+
+    .thumb {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      object-fit: cover;
+      display: block;
+      background: #f8fafc;
+    }
+
+    .thumb-count {
+      font-size: 0.77rem;
+      color: #334155;
+      font-weight: 700;
     }
 
     table {
@@ -264,6 +317,14 @@
           <button type="button" class="secondary" id="btn-location">Usar localizacao atual</button>
           <button type="submit" id="btn-submit">Salvar reporte</button>
         </div>
+        <div class="install-box">
+          <p><strong>Uso no celular:</strong> instale este app para abrir direto na tela inicial.</p>
+          <div class="actions" style="margin-top:0;">
+            <button type="button" id="btn-install" class="secondary" disabled>Baixar/Instalar app no celular</button>
+            <button type="button" id="btn-install-help" class="warn">Como instalar manualmente</button>
+          </div>
+          <p id="install-status">Preparando instalacao...</p>
+        </div>
         <div id="status" class="status"></div>
       </form>
     </section>
@@ -283,6 +344,7 @@
               <th>Notificante</th>
               <th>Coordenadas</th>
               <th>Fotos</th>
+              <th>Tempo de registro</th>
               <th>Descricao</th>
             </tr>
           </thead>
@@ -303,8 +365,13 @@
     const empty = document.getElementById('empty');
     const photosInput = document.getElementById('fotos');
     const preview = document.getElementById('preview');
+    const btnInstall = document.getElementById('btn-install');
+    const btnInstallHelp = document.getElementById('btn-install-help');
+    const installStatus = document.getElementById('install-status');
 
     let encodedPhotos = [];
+    let pendingInstallPrompt = null;
+    let timerInterval = null;
 
     function fileToDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -348,6 +415,47 @@
       });
     }
 
+    function getTimestampFromItem(item) {
+      const idTs = Number(item && item.id);
+      if (Number.isFinite(idTs) && idTs > 0) return idTs;
+
+      const text = (item && item.dataHora) || '';
+      const m = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+      if (!m) return Date.now();
+      const [, dd, mm, yyyy, hh, mi, ss] = m;
+      const dt = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss));
+      return dt.getTime();
+    }
+
+    function formatElapsed(ms) {
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(totalSec / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      const seconds = totalSec % 60;
+      return String(hours).padStart(2, '0') + 'h '
+        + String(minutes).padStart(2, '0') + 'm '
+        + String(seconds).padStart(2, '0') + 's';
+    }
+
+    function updateElapsedTimers() {
+      const now = Date.now();
+      document.querySelectorAll('[data-ts]').forEach((el) => {
+        const ts = Number(el.getAttribute('data-ts'));
+        el.textContent = formatElapsed(now - ts);
+      });
+    }
+
+    function buildThumbs(item) {
+      const photos = Array.isArray(item.fotos) ? item.fotos : [];
+      if (photos.length === 0) return '-';
+
+      const shown = photos.slice(0, 3)
+        .map((src, idx) => `<img class="thumb" src="${src}" alt="Foto ${idx + 1}">`)
+        .join('');
+      const extra = photos.length > 3 ? `<span class="thumb-count">+${photos.length - 3}</span>` : '';
+      return `<div class="thumbs">${shown}${extra}</div>`;
+    }
+
     function setStatus(message, type) {
       statusEl.textContent = message;
       statusEl.className = 'status ' + (type || '');
@@ -369,13 +477,15 @@
         }
 
         items.slice().reverse().forEach((item) => {
+          const ts = getTimestampFromItem(item);
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${item.dataHora || '-'}</td>
             <td>${item.endereco || '-'}</td>
             <td>${item.nomeNotificante || '-'}</td>
             <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
-            <td>${item.photoCount || (Array.isArray(item.fotos) ? item.fotos.length : 0)}</td>
+            <td>${buildThumbs(item)}</td>
+            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
             <td>${item.descricao || '-'}</td>
           `;
           rows.appendChild(tr);
@@ -383,6 +493,10 @@
 
         empty.textContent = '';
         table.hidden = false;
+        updateElapsedTimers();
+
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateElapsedTimers, 1000);
       } catch (err) {
         empty.textContent = 'Erro ao carregar a lista: ' + err.message;
       }
@@ -409,6 +523,47 @@
     });
 
     btnRefresh.addEventListener('click', loadAccidents);
+
+    btnInstallHelp.addEventListener('click', () => {
+      alert('Android (Chrome): menu > Instalar app.\niPhone (Safari): Compartilhar > Adicionar a Tela de Inicio.');
+    });
+
+    btnInstall.addEventListener('click', async () => {
+      if (!pendingInstallPrompt) {
+        installStatus.textContent = 'Instalacao automatica indisponivel neste navegador. Use o botao de ajuda.';
+        return;
+      }
+
+      pendingInstallPrompt.prompt();
+      const result = await pendingInstallPrompt.userChoice;
+      pendingInstallPrompt = null;
+      btnInstall.disabled = true;
+      installStatus.textContent = result && result.outcome === 'accepted'
+        ? 'App instalado com sucesso.'
+        : 'Instalacao cancelada.';
+    });
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      pendingInstallPrompt = event;
+      btnInstall.disabled = false;
+      installStatus.textContent = 'App pronto para instalar. Toque no botao acima.';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installStatus.textContent = 'App instalado no celular/dispositivo.';
+      btnInstall.disabled = true;
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          installStatus.textContent = 'Nao foi possivel ativar modo instalavel neste navegador.';
+        });
+      });
+    } else {
+      installStatus.textContent = 'Navegador sem suporte a instalacao automatica.';
+    }
 
     photosInput.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
