@@ -480,7 +480,8 @@
         </div>
 
         <div class="actions">
-          <button type="button" class="secondary" id="btn-location">Atualizar GPS em tempo real</button>
+          <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
+          <button type="button" class="secondary" id="btn-location">&#128260; Rastrear em tempo real</button>
           <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
           <button type="submit" id="btn-submit">Salvar reporte</button>
         </div>
@@ -528,6 +529,7 @@
     const statusEl = document.getElementById('status');
     const btnSubmit = document.getElementById('btn-submit');
     const btnLocation = document.getElementById('btn-location');
+    const btnLocationOnce = document.getElementById('btn-location-once');
     const btnSync = document.getElementById('btn-sync');
     const btnRefresh = document.getElementById('btn-refresh');
     const table = document.getElementById('table');
@@ -754,6 +756,29 @@
       return Math.max(0, Math.floor((Date.now() - registrationStartedAt) / 1000));
     }
 
+    function getLocationOnce() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
+        return;
+      }
+      setStatus('Capturando localizacao atual...', '');
+      btnLocationOnce.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setPointOnMap(lat, lon, true);
+          setStatus('Localizacao preenchida: ' + lat.toFixed(5) + ', ' + lon.toFixed(5), 'ok');
+          btnLocationOnce.disabled = false;
+        },
+        (err) => {
+          setStatus('Nao foi possivel obter localizacao: ' + err.message, 'error');
+          btnLocationOnce.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    }
+
     function startLiveGpsTracking() {
       if (!navigator.geolocation) {
         setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
@@ -761,7 +786,11 @@
       }
 
       if (gpsWatchId !== null) {
-        setStatus('GPS em tempo real ja esta ativo.', 'ok');
+        // Desativar rastreamento continuo ao clicar de novo
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+        btnLocation.textContent = '\u{1F501} Rastrear em tempo real';
+        setStatus('Rastreamento em tempo real desativado.', '');
         return;
       }
 
@@ -797,7 +826,8 @@
         { enableHighAccuracy: true, timeout: 12000, maximumAge: 4000 }
       );
 
-      setStatus('GPS em tempo real ativado.', 'ok');
+      btnLocation.textContent = '\u23F9 Parar rastreamento';
+      setStatus('GPS em tempo real ativado. Sua posicao sera atualizada no mapa automaticamente.', 'ok');
     }
 
     function getTimestampFromItem(item) {
@@ -925,6 +955,7 @@
       }
     }
 
+    btnLocationOnce.addEventListener('click', getLocationOnce);
     btnLocation.addEventListener('click', () => {
       startLiveGpsTracking();
     });
