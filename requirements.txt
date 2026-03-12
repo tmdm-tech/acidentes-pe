@@ -1,2 +1,1 @@
-# Add your Python dependencies here\n# Example:\n# flask==2.3.2\n
-gunicorn
+gunicorn==25.1.0
