@@ -415,11 +415,11 @@
 </head>
 <body>
   <!-- Banner de instalação sticky no topo -->
-  <div id="install-banner" class="install-banner" hidden>
+  <div id="install-banner" class="install-banner">
     <p>📲 Instale o ObservaPE no seu celular!</p>
     <div class="banner-actions">
-      <button type="button" class="btn-primary-install" id="btn-banner-install">Instalar agora</button>
-      <button type="button" id="btn-banner-help">Como instalar</button>
+      <button type="button" class="btn-primary-install" id="btn-banner-install" style="display:none">Instalar agora</button>
+      <button type="button" id="btn-banner-help">📖 Como instalar</button>
       <button type="button" id="btn-banner-close" aria-label="Fechar">✕</button>
     </div>
   </div>
@@ -488,10 +488,10 @@
         <div class="install-box">
           <p><strong>📲 Instalar app no celular</strong></p>
           <div class="actions" style="margin-top:0;">
-            <button type="button" id="btn-install" class="secondary" disabled>⬇ Instalar no celular (Android/Chrome)</button>
-            <button type="button" id="btn-install-help" class="warn">iOS / instrucoes manuais</button>
+            <button type="button" id="btn-install" class="btn-primary-install" style="display:none">⬇ Instalar automaticamente (Android/Chrome)</button>
+            <button type="button" id="btn-install-help" class="secondary">📖 Ver instrucoes de instalacao</button>
           </div>
-          <p id="install-status">Verificando compatibilidade...</p>
+          <p id="install-status">Toque em &quot;Ver instrucoes&quot; para saber como adicionar na tela inicial.</p>
         </div>
         <div id="status" class="status"></div>
       </form>
@@ -1008,34 +1008,27 @@
     btnInstall.addEventListener('click', triggerInstall);
     btnBannerInstall.addEventListener('click', triggerInstall);
     btnBannerHelp.addEventListener('click', showInstallHelp);
-    btnBannerClose.addEventListener('click', () => { installBanner.hidden = true; });
+    btnBannerClose.addEventListener('click', () => { installBanner.style.display = 'none'; });
 
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
       pendingInstallPrompt = event;
-      btnInstall.disabled = false;
-      installStatus.textContent = 'Toque em "Instalar no celular" para adicionar a tela inicial.';
-      installBanner.hidden = false;
+      btnInstall.style.display = '';
+      btnBannerInstall.style.display = '';
+      installStatus.textContent = 'Instalacao automatica disponivel! Toque em "Instalar automaticamente".';
     });
 
     window.addEventListener('appinstalled', () => {
-      installStatus.textContent = 'App instalado no celular!';
-      btnInstall.disabled = true;
-      installBanner.hidden = true;
+      installStatus.textContent = 'App instalado com sucesso!';
+      btnInstall.style.display = 'none';
+      btnBannerInstall.style.display = 'none';
     });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(() => {
-            installStatus.textContent = 'App pronto. Toque em "Instalar no celular" para adicionar a tela inicial.';
-          })
-          .catch(() => {
-            installStatus.textContent = 'Navegador sem suporte a instalacao automatica. Use as instrucoes manuais.';
-          });
+          .catch(() => {});
       });
-    } else {
-      installStatus.textContent = 'Navegador sem suporte a PWA. Use as instrucoes manuais.';
     }
 
     window.addEventListener('online', () => {
