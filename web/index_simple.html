@@ -153,6 +153,8 @@
     .status.ok { color: var(--ok); }
     .status.error { color: var(--danger); }
 
+    .status.warn { color: #b45309; }
+
     .photo-help {
       font-size: 0.85rem;
       color: var(--muted);
@@ -232,6 +234,63 @@
       font-weight: 700;
     }
 
+    .map-box {
+      margin-top: 6px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+
+    .map-caption {
+      font-size: 0.83rem;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    #pe-map {
+      width: 100%;
+      height: 260px;
+      display: block;
+      background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+      cursor: crosshair;
+    }
+
+    .sea {
+      fill: #dbeafe;
+    }
+
+    .state {
+      fill: #bfdbfe;
+      stroke: #1e3a8a;
+      stroke-width: 3;
+    }
+
+    .state-label {
+      font-size: 16px;
+      font-weight: 700;
+      fill: #1e3a8a;
+      letter-spacing: 0.6px;
+    }
+
+    .map-marker {
+      fill: #dc2626;
+      stroke: #fff;
+      stroke-width: 2;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+    }
+
+    .offline-chip {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #ffedd5;
+      color: #9a3412;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -302,6 +361,18 @@
             <input id="longitude" required>
           </div>
           <div class="field full">
+            <label>Mapa de Pernambuco (clique para marcar o ponto)</label>
+            <div class="map-box">
+              <svg id="pe-map" viewBox="0 0 520 300" aria-label="Mapa de Pernambuco">
+                <rect class="sea" x="0" y="0" width="520" height="300"></rect>
+                <path class="state" d="M46 197 L70 154 L124 136 L140 110 L192 94 L255 87 L300 65 L351 63 L398 88 L429 126 L465 135 L476 160 L458 194 L433 203 L408 235 L365 239 L323 258 L282 249 L243 255 L198 247 L151 250 L118 233 L74 229 Z"></path>
+                <text class="state-label" x="188" y="168">Pernambuco</text>
+                <circle id="map-marker" class="map-marker" cx="-20" cy="-20" r="7"></circle>
+              </svg>
+            </div>
+            <div class="map-caption">Ao tocar no mapa, latitude e longitude sao preenchidas automaticamente com aproximacao da regiao clicada.</div>
+          </div>
+          <div class="field full">
             <label for="descricao">Descricao</label>
             <textarea id="descricao" required></textarea>
           </div>
@@ -315,6 +386,7 @@
 
         <div class="actions">
           <button type="button" class="secondary" id="btn-location">Usar localizacao atual</button>
+          <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
           <button type="submit" id="btn-submit">Salvar reporte</button>
         </div>
         <div class="install-box">
@@ -334,6 +406,7 @@
       <div class="actions" style="margin-top:0; margin-bottom: 10px;">
         <button type="button" class="secondary" id="btn-refresh">Atualizar lista</button>
       </div>
+      <div id="offline-info" class="map-caption"></div>
       <div id="empty" class="empty">Carregando registros...</div>
       <div style="overflow:auto;">
         <table id="table" hidden>
@@ -359,6 +432,7 @@
     const statusEl = document.getElementById('status');
     const btnSubmit = document.getElementById('btn-submit');
     const btnLocation = document.getElementById('btn-location');
+    const btnSync = document.getElementById('btn-sync');
     const btnRefresh = document.getElementById('btn-refresh');
     const table = document.getElementById('table');
     const rows = document.getElementById('rows');
@@ -368,10 +442,25 @@
     const btnInstall = document.getElementById('btn-install');
     const btnInstallHelp = document.getElementById('btn-install-help');
     const installStatus = document.getElementById('install-status');
+    const offlineInfo = document.getElementById('offline-info');
+    const peMap = document.getElementById('pe-map');
+    const mapMarker = document.getElementById('map-marker');
+    const latInput = document.getElementById('latitude');
+    const lonInput = document.getElementById('longitude');
 
     let encodedPhotos = [];
     let pendingInstallPrompt = null;
     let timerInterval = null;
+    const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
+    const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
+
+    // Limites geograficos aproximados de Pernambuco para mapeamento visual.
+    const PE_BOUNDS = {
+      latMin: -9.50,
+      latMax: -7.15,
+      lonMin: -41.50,
+      lonMax: -34.80
+    };
 
     function fileToDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -413,6 +502,115 @@
         wrapper.appendChild(img);
         preview.appendChild(wrapper);
       });
+    }
+
+    function readJsonStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function writeJsonStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function getOfflineQueue() {
+      return readJsonStorage(OFFLINE_QUEUE_KEY, []);
+    }
+
+    function setOfflineQueue(queue) {
+      writeJsonStorage(OFFLINE_QUEUE_KEY, queue);
+      updateOfflineInfo();
+    }
+
+    function cacheAccidents(items) {
+      writeJsonStorage(OFFLINE_CACHE_KEY, items);
+    }
+
+    function getCachedAccidents() {
+      return readJsonStorage(OFFLINE_CACHE_KEY, []);
+    }
+
+    function updateOfflineInfo() {
+      const queue = getOfflineQueue();
+      const mode = navigator.onLine ? 'online' : 'offline';
+      const count = queue.length;
+      offlineInfo.innerHTML = `Modo atual: <strong>${mode}</strong>. Pendentes para sincronizar: <strong>${count}</strong>.`;
+      btnSync.disabled = count === 0;
+    }
+
+    async function syncOfflineReports() {
+      if (!navigator.onLine) {
+        setStatus('Sem internet. Sincronizacao indisponivel no momento.', 'warn');
+        return;
+      }
+
+      const queue = getOfflineQueue();
+      if (queue.length === 0) {
+        setStatus('Nao ha registros offline pendentes.', 'ok');
+        return;
+      }
+
+      let remaining = [...queue];
+      let sent = 0;
+
+      for (const item of queue) {
+        try {
+          const response = await fetch('/api/accidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+          if (!response.ok) throw new Error('Falha no envio');
+          sent += 1;
+          remaining = remaining.filter((r) => r.localId !== item.localId);
+          setOfflineQueue(remaining);
+        } catch (_) {
+          break;
+        }
+      }
+
+      if (sent > 0) {
+        setStatus(`${sent} registro(s) offline sincronizado(s).`, 'ok');
+        await loadAccidents();
+      } else {
+        setStatus('Nao foi possivel sincronizar agora.', 'warn');
+      }
+    }
+
+    function mapClickToCoords(clientX, clientY) {
+      const rect = peMap.getBoundingClientRect();
+      const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const yRatio = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+
+      const lon = PE_BOUNDS.lonMin + xRatio * (PE_BOUNDS.lonMax - PE_BOUNDS.lonMin);
+      const lat = PE_BOUNDS.latMax - yRatio * (PE_BOUNDS.latMax - PE_BOUNDS.latMin);
+      return {
+        lat: lat.toFixed(6),
+        lon: lon.toFixed(6),
+        x: xRatio,
+        y: yRatio
+      };
+    }
+
+    function coordsToMapPoint(lat, lon) {
+      const xRatio = (lon - PE_BOUNDS.lonMin) / (PE_BOUNDS.lonMax - PE_BOUNDS.lonMin);
+      const yRatio = (PE_BOUNDS.latMax - lat) / (PE_BOUNDS.latMax - PE_BOUNDS.latMin);
+      return {
+        x: Math.min(1, Math.max(0, xRatio)),
+        y: Math.min(1, Math.max(0, yRatio))
+      };
+    }
+
+    function placeMarkerByRatio(xRatio, yRatio) {
+      const vb = peMap.viewBox.baseVal;
+      const x = vb.x + vb.width * xRatio;
+      const y = vb.y + vb.height * yRatio;
+      mapMarker.setAttribute('cx', String(x));
+      mapMarker.setAttribute('cy', String(y));
     }
 
     function getTimestampFromItem(item) {
@@ -468,6 +666,7 @@
         const response = await fetch('/api/accidents');
         if (!response.ok) throw new Error('Falha ao carregar registros');
         const items = await response.json();
+        cacheAccidents(items);
 
         rows.innerHTML = '';
         if (!Array.isArray(items) || items.length === 0) {
@@ -498,7 +697,44 @@
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(updateElapsedTimers, 1000);
       } catch (err) {
-        empty.textContent = 'Erro ao carregar a lista: ' + err.message;
+        const cached = getCachedAccidents();
+        const pending = getOfflineQueue();
+        const offlineItems = pending.map((item) => ({
+          ...item,
+          dataHora: item.dataHora || 'Pendente offline',
+          id: item.localId,
+          _offline: true
+        }));
+        const fallback = [...offlineItems, ...cached];
+
+        rows.innerHTML = '';
+        if (!Array.isArray(fallback) || fallback.length === 0) {
+          empty.textContent = 'Sem internet e sem cache local.';
+          table.hidden = true;
+          return;
+        }
+
+        fallback.forEach((item) => {
+          const ts = getTimestampFromItem(item);
+          const tr = document.createElement('tr');
+          const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
+          tr.innerHTML = `
+            <td>${item.dataHora || '-'} ${offChip}</td>
+            <td>${item.endereco || '-'}</td>
+            <td>${item.nomeNotificante || '-'}</td>
+            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
+            <td>${buildThumbs(item)}</td>
+            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
+            <td>${item.descricao || '-'}</td>
+          `;
+          rows.appendChild(tr);
+        });
+
+        empty.textContent = 'Mostrando cache local (offline).';
+        table.hidden = false;
+        updateElapsedTimers();
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateElapsedTimers, 1000);
       }
     }
 
@@ -511,8 +747,10 @@
       setStatus('Capturando localizacao...', '');
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          document.getElementById('latitude').value = String(pos.coords.latitude);
-          document.getElementById('longitude').value = String(pos.coords.longitude);
+          latInput.value = String(pos.coords.latitude);
+          lonInput.value = String(pos.coords.longitude);
+          const point = coordsToMapPoint(Number(latInput.value), Number(lonInput.value));
+          placeMarkerByRatio(point.x, point.y);
           setStatus('Localizacao preenchida com sucesso.', 'ok');
         },
         (err) => {
@@ -523,6 +761,26 @@
     });
 
     btnRefresh.addEventListener('click', loadAccidents);
+    btnSync.addEventListener('click', syncOfflineReports);
+
+    peMap.addEventListener('click', (event) => {
+      const point = mapClickToCoords(event.clientX, event.clientY);
+      latInput.value = point.lat;
+      lonInput.value = point.lon;
+      placeMarkerByRatio(point.x, point.y);
+      setStatus('Ponto marcado no mapa de Pernambuco.', 'ok');
+    });
+
+    [latInput, lonInput].forEach((input) => {
+      input.addEventListener('change', () => {
+        const lat = Number(latInput.value);
+        const lon = Number(lonInput.value);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          const p = coordsToMapPoint(lat, lon);
+          placeMarkerByRatio(p.x, p.y);
+        }
+      });
+    });
 
     btnInstallHelp.addEventListener('click', () => {
       alert('Android (Chrome): menu > Instalar app.\niPhone (Safari): Compartilhar > Adicionar a Tela de Inicio.');
@@ -565,6 +823,16 @@
       installStatus.textContent = 'Navegador sem suporte a instalacao automatica.';
     }
 
+    window.addEventListener('online', () => {
+      updateOfflineInfo();
+      syncOfflineReports();
+    });
+
+    window.addEventListener('offline', () => {
+      updateOfflineInfo();
+      setStatus('Voce esta offline. Registros serao salvos localmente.', 'warn');
+    });
+
     photosInput.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
       if (files.length > 5) {
@@ -599,9 +867,11 @@
       setStatus('Enviando reporte...', '');
 
       const payload = {
+        localId: String(Date.now()),
+        dataHora: new Date().toLocaleString('pt-BR'),
         endereco: document.getElementById('endereco').value.trim(),
-        latitude: document.getElementById('latitude').value.trim(),
-        longitude: document.getElementById('longitude').value.trim(),
+        latitude: latInput.value.trim(),
+        longitude: lonInput.value.trim(),
         nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
         cpf: document.getElementById('cpf').value.trim(),
         descricao: document.getElementById('descricao').value.trim(),
@@ -609,6 +879,18 @@
       };
 
       try {
+        if (!navigator.onLine) {
+          const queue = getOfflineQueue();
+          queue.push(payload);
+          setOfflineQueue(queue);
+          form.reset();
+          encodedPhotos = [];
+          renderPreview();
+          setStatus('Sem internet: registro salvo offline e aguardando sincronizacao.', 'warn');
+          await loadAccidents();
+          return;
+        }
+
         const response = await fetch('/api/accidents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -624,12 +906,22 @@
         setStatus('Reporte salvo com sucesso.', 'ok');
         loadAccidents();
       } catch (err) {
-        setStatus('Erro: ' + err.message, 'error');
+        const queue = getOfflineQueue();
+        queue.push(payload);
+        setOfflineQueue(queue);
+        form.reset();
+        encodedPhotos = [];
+        renderPreview();
+        setStatus('Falha de rede: registro salvo offline para sincronizar depois.', 'warn');
+        await loadAccidents();
       } finally {
         btnSubmit.disabled = false;
       }
     });
 
+    updateOfflineInfo();
+    const firstPoint = coordsToMapPoint(-8.05, -34.9);
+    placeMarkerByRatio(firstPoint.x, firstPoint.y);
     loadAccidents();
   </script>
 </body>

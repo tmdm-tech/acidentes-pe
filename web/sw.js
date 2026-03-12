@@ -1,5 +1,6 @@
-const CACHE_NAME = 'observa-pe-v1';
-const ASSETS = ['/', '/manifest.json', '/icon.svg'];
+const CACHE_NAME = 'observa-pe-v2';
+const API_CACHE = 'observa-pe-api-v1';
+const ASSETS = ['/', '/manifest.json', '/icon.svg', '/sw.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
@@ -7,11 +8,32 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key !== CACHE_NAME && key !== API_CACHE)
+        .map((key) => caches.delete(key))
+    )).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const reqUrl = new URL(event.request.url);
+
+  if (reqUrl.pathname === '/api/accidents') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(API_CACHE).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
