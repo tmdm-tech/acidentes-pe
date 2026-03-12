@@ -9,8 +9,10 @@ pip install -r requirements.txt
 ## Execução
 
 ```bash
-gunicorn server:app --bind 0.0.0.0:$PORT
+python -m gunicorn server:app --bind 0.0.0.0:$PORT
 ```
+
+Use `PORT=8000` como padrão local quando a variável não estiver definida.
 
 ## Endpoints
 
@@ -27,10 +29,10 @@ Arquivos incluídos:
 Deploy por Render:
 1. Crie projeto no Render apontando para este repositório.
 2. O comando de build é `pip install -r requirements.txt`.
-3. O comando de start é `gunicorn server:app --bind 0.0.0.0:$PORT`.
+3. O comando de start é `python -m gunicorn server:app --bind 0.0.0.0:$PORT`.
 
 ## Execução local rápida
 
 ```bash
-PORT=8000 gunicorn server:app --bind 0.0.0.0:$PORT
+PORT=8000 python -m gunicorn server:app --bind 0.0.0.0:$PORT
 ```

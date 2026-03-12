@@ -1,1 +1,1 @@
-web: gunicorn server:app --bind 0.0.0.0:$PORT
+web: sh -c 'python -m gunicorn server:app --bind 0.0.0.0:${PORT:-8000}'

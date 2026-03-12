@@ -4,4 +4,4 @@ services:
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn server:app --bind 0.0.0.0:$PORT"
+    startCommand: "sh -c 'python -m gunicorn server:app --bind 0.0.0.0:${PORT:-8000}'"
