@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ObservaTransito PE</title>
   <meta name="theme-color" content="#1d4ed8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ObservaPE">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <style>
@@ -160,6 +165,56 @@
       font-size: 0.85rem;
       color: var(--muted);
       margin-top: 4px;
+    }
+
+    .install-banner {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: linear-gradient(115deg, var(--amarelo) 0%, var(--azul) 50%, var(--verde) 80%, var(--vermelho) 100%);
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.2);
+    }
+
+    .install-banner[hidden] { display: none; }
+
+    .install-banner p {
+      margin: 0;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .install-banner .banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .install-banner button {
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      font-weight: 700;
+      border: 2px solid rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .install-banner button:hover {
+      background: rgba(255,255,255,0.38);
+    }
+
+    .install-banner button.btn-primary-install {
+      background: rgba(255,255,255,0.92);
+      color: #1d4ed8;
     }
 
     .install-box {
@@ -359,6 +414,16 @@
   </style>
 </head>
 <body>
+  <!-- Banner de instalação sticky no topo -->
+  <div id="install-banner" class="install-banner" hidden>
+    <p>📲 Instale o ObservaPE no seu celular!</p>
+    <div class="banner-actions">
+      <button type="button" class="btn-primary-install" id="btn-banner-install">Instalar agora</button>
+      <button type="button" id="btn-banner-help">Como instalar</button>
+      <button type="button" id="btn-banner-close" aria-label="Fechar">✕</button>
+    </div>
+  </div>
+
   <header class="hero">
     <h1>ObservaTransito PE</h1>
     <p>Reporte de acidentes com registro centralizado</p>
@@ -420,12 +485,12 @@
           <button type="submit" id="btn-submit">Salvar reporte</button>
         </div>
         <div class="install-box">
-          <p><strong>Uso no celular:</strong> instale este app para abrir direto na tela inicial.</p>
+          <p><strong>📲 Instalar app no celular</strong></p>
           <div class="actions" style="margin-top:0;">
-            <button type="button" id="btn-install" class="secondary" disabled>Baixar/Instalar app no celular</button>
-            <button type="button" id="btn-install-help" class="warn">Como instalar manualmente</button>
+            <button type="button" id="btn-install" class="secondary" disabled>⬇ Instalar no celular (Android/Chrome)</button>
+            <button type="button" id="btn-install-help" class="warn">iOS / instrucoes manuais</button>
           </div>
-          <p id="install-status">Preparando instalacao...</p>
+          <p id="install-status">Verificando compatibilidade...</p>
         </div>
         <div id="status" class="status"></div>
       </form>
@@ -473,6 +538,10 @@
     const btnInstall = document.getElementById('btn-install');
     const btnInstallHelp = document.getElementById('btn-install-help');
     const installStatus = document.getElementById('install-status');
+    const installBanner = document.getElementById('install-banner');
+    const btnBannerInstall = document.getElementById('btn-banner-install');
+    const btnBannerHelp = document.getElementById('btn-banner-help');
+    const btnBannerClose = document.getElementById('btn-banner-close');
     const offlineInfo = document.getElementById('offline-info');
     const peMap = document.getElementById('pe-map');
     const latInput = document.getElementById('latitude');
@@ -873,45 +942,69 @@
       });
     });
 
-    btnInstallHelp.addEventListener('click', () => {
-      alert('Android (Chrome): menu > Instalar app.\niPhone (Safari): Compartilhar > Adicionar a Tela de Inicio.');
-    });
+    function showInstallHelp() {
+      alert(
+        '📲 Como instalar o ObservaPE:\n\n' +
+        '🤖 Android (Chrome):\n' +
+        '  1. Toque nos 3 pontos no canto superior direito\n' +
+        '  2. Toque em "Instalar app" ou "Adicionar a tela inicial"\n\n' +
+        '🍎 iPhone / iPad (Safari):\n' +
+        '  1. Toque no botao de compartilhamento (quadrado com seta)\n' +
+        '  2. Role para baixo e toque em "Adicionar a Tela de Inicio"\n' +
+        '  3. Confirme tocando em "Adicionar"\n\n' +
+        '💡 Dica: No iPhone use o Safari. No Android use o Chrome.'
+      );
+    }
 
-    btnInstall.addEventListener('click', async () => {
+    async function triggerInstall() {
       if (!pendingInstallPrompt) {
-        installStatus.textContent = 'Instalacao automatica indisponivel neste navegador. Use o botao de ajuda.';
+        showInstallHelp();
         return;
       }
-
       pendingInstallPrompt.prompt();
       const result = await pendingInstallPrompt.userChoice;
       pendingInstallPrompt = null;
-      btnInstall.disabled = true;
-      installStatus.textContent = result && result.outcome === 'accepted'
-        ? 'App instalado com sucesso.'
-        : 'Instalacao cancelada.';
-    });
+      if (result && result.outcome === 'accepted') {
+        installStatus.textContent = 'App instalado com sucesso!';
+        btnInstall.disabled = true;
+        installBanner.hidden = true;
+      } else {
+        installStatus.textContent = 'Instalacao cancelada.';
+      }
+    }
+
+    btnInstallHelp.addEventListener('click', showInstallHelp);
+    btnInstall.addEventListener('click', triggerInstall);
+    btnBannerInstall.addEventListener('click', triggerInstall);
+    btnBannerHelp.addEventListener('click', showInstallHelp);
+    btnBannerClose.addEventListener('click', () => { installBanner.hidden = true; });
 
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
       pendingInstallPrompt = event;
       btnInstall.disabled = false;
-      installStatus.textContent = 'App pronto para instalar. Toque no botao acima.';
+      installStatus.textContent = 'Toque em "Instalar no celular" para adicionar a tela inicial.';
+      installBanner.hidden = false;
     });
 
     window.addEventListener('appinstalled', () => {
-      installStatus.textContent = 'App instalado no celular/dispositivo.';
+      installStatus.textContent = 'App instalado no celular!';
       btnInstall.disabled = true;
+      installBanner.hidden = true;
     });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-          installStatus.textContent = 'Nao foi possivel ativar modo instalavel neste navegador.';
-        });
+        navigator.serviceWorker.register('/sw.js')
+          .then(() => {
+            installStatus.textContent = 'App pronto. Toque em "Instalar no celular" para adicionar a tela inicial.';
+          })
+          .catch(() => {
+            installStatus.textContent = 'Navegador sem suporte a instalacao automatica. Use as instrucoes manuais.';
+          });
       });
     } else {
-      installStatus.textContent = 'Navegador sem suporte a instalacao automatica.';
+      installStatus.textContent = 'Navegador sem suporte a PWA. Use as instrucoes manuais.';
     }
 
     window.addEventListener('online', () => {
