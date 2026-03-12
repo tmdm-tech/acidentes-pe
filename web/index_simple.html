@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ObservaTransito PE</title>
+  <style>
+    :root {
+      --bg-1: #0b3c5d;
+      --bg-2: #328cc1;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --ok: #0f766e;
+      --danger: #b91c1c;
+      --line: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 10% 10%, #dff3ff 0%, #cce7ff 20%, #f8fbff 55%, #eef6ff 100%);
+      min-height: 100vh;
+    }
+
+    .hero {
+      background: linear-gradient(130deg, var(--bg-1), var(--bg-2));
+      color: #fff;
+      padding: 32px 18px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3.8vw, 2.3rem);
+      letter-spacing: 0.4px;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      opacity: 0.94;
+      font-size: 1rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px 28px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.2rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    textarea { min-height: 90px; resize: vertical; }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      background: #0f766e;
+    }
+
+    button.secondary {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      min-height: 20px;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.error { color: var(--danger); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 8px 0;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      th:nth-child(3), td:nth-child(3),
+      th:nth-child(4), td:nth-child(4) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <h1>ObservaTransito PE</h1>
+    <p>Reporte de acidentes com registro centralizado</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Novo reporte</h2>
+      <form id="accident-form">
+        <div class="grid">
+          <div class="field">
+            <label for="nomeNotificante">Nome do notificante</label>
+            <input id="nomeNotificante" required>
+          </div>
+          <div class="field">
+            <label for="cpf">CPF</label>
+            <input id="cpf" required>
+          </div>
+          <div class="field full">
+            <label for="endereco">Endereco</label>
+            <input id="endereco" required>
+          </div>
+          <div class="field">
+            <label for="latitude">Latitude</label>
+            <input id="latitude" required>
+          </div>
+          <div class="field">
+            <label for="longitude">Longitude</label>
+            <input id="longitude" required>
+          </div>
+          <div class="field full">
+            <label for="descricao">Descricao</label>
+            <textarea id="descricao" required></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="secondary" id="btn-location">Usar localizacao atual</button>
+          <button type="submit" id="btn-submit">Salvar reporte</button>
+        </div>
+        <div id="status" class="status"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Registros</h2>
+      <div class="actions" style="margin-top:0; margin-bottom: 10px;">
+        <button type="button" class="secondary" id="btn-refresh">Atualizar lista</button>
+      </div>
+      <div id="empty" class="empty">Carregando registros...</div>
+      <div style="overflow:auto;">
+        <table id="table" hidden>
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Endereco</th>
+              <th>Notificante</th>
+              <th>Coordenadas</th>
+              <th>Descricao</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('accident-form');
+    const statusEl = document.getElementById('status');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnLocation = document.getElementById('btn-location');
+    const btnRefresh = document.getElementById('btn-refresh');
+    const table = document.getElementById('table');
+    const rows = document.getElementById('rows');
+    const empty = document.getElementById('empty');
+
+    function setStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + (type || '');
+    }
+
+    async function loadAccidents() {
+      empty.textContent = 'Carregando registros...';
+      table.hidden = true;
+      try {
+        const response = await fetch('/api/accidents');
+        if (!response.ok) throw new Error('Falha ao carregar registros');
+        const items = await response.json();
+
+        rows.innerHTML = '';
+        if (!Array.isArray(items) || items.length === 0) {
+          empty.textContent = 'Nenhum acidente registrado ainda.';
+          table.hidden = true;
+          return;
+        }
+
+        items.slice().reverse().forEach((item) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.dataHora || '-'}</td>
+            <td>${item.endereco || '-'}</td>
+            <td>${item.nomeNotificante || '-'}</td>
+            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
+            <td>${item.descricao || '-'}</td>
+          `;
+          rows.appendChild(tr);
+        });
+
+        empty.textContent = '';
+        table.hidden = false;
+      } catch (err) {
+        empty.textContent = 'Erro ao carregar a lista: ' + err.message;
+      }
+    }
+
+    btnLocation.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
+        return;
+      }
+
+      setStatus('Capturando localizacao...', '');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.getElementById('latitude').value = String(pos.coords.latitude);
+          document.getElementById('longitude').value = String(pos.coords.longitude);
+          setStatus('Localizacao preenchida com sucesso.', 'ok');
+        },
+        (err) => {
+          setStatus('Nao foi possivel obter localizacao: ' + err.message, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    });
+
+    btnRefresh.addEventListener('click', loadAccidents);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      btnSubmit.disabled = true;
+      setStatus('Enviando reporte...', '');
+
+      const payload = {
+        endereco: document.getElementById('endereco').value.trim(),
+        latitude: document.getElementById('latitude').value.trim(),
+        longitude: document.getElementById('longitude').value.trim(),
+        nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
+        cpf: document.getElementById('cpf').value.trim(),
+        descricao: document.getElementById('descricao').value.trim(),
+        fotos: []
+      };
+
+      try {
+        const response = await fetch('/api/accidents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Falha ao salvar');
+
+        form.reset();
+        setStatus('Reporte salvo com sucesso.', 'ok');
+        loadAccidents();
+      } catch (err) {
+        setStatus('Erro: ' + err.message, 'error');
+      } finally {
+        btnSubmit.disabled = false;
+      }
+    });
+
+    loadAccidents();
+  </script>
+</body>
+</html>
