@@ -7,6 +7,9 @@ from datetime import datetime, date, timedelta
 import socket
 import threading
 import time
+import base64
+from urllib import request as urllib_request
+from urllib import error as urllib_error
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
@@ -20,11 +23,141 @@ ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
 EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
 EXPORT_STATE_FILE = os.path.join(EXPORTS_DIR, 'daily_export_state.json')
 SCHEDULER_STARTED = False
+ADMIN_ACCESS_KEY = os.environ.get('ADMIN_ACCESS_KEY', '')
+GITHUB_BACKUP_REPO = os.environ.get('GITHUB_BACKUP_REPO', '')  # owner/repo
+GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
+GITHUB_BACKUP_BRANCH = os.environ.get('GITHUB_BACKUP_BRANCH', 'main')
+GITHUB_BACKUP_PATH = os.environ.get('GITHUB_BACKUP_PATH', 'observa_backup')
+BACKUP_STATE_FILE = os.path.join(DATA_DIR, 'backup_state.json')
 
 
 def ensure_exports_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+
+def read_backup_state():
+    ensure_exports_dir()
+    if not os.path.exists(BACKUP_STATE_FILE):
+        return {'lastBackupAt': '', 'lastBackupError': ''}
+    try:
+        with open(BACKUP_STATE_FILE, 'r', encoding='utf-8') as f:
+            state = json.load(f)
+            if not isinstance(state, dict):
+                return {'lastBackupAt': '', 'lastBackupError': ''}
+            return {
+                'lastBackupAt': str(state.get('lastBackupAt', '')),
+                'lastBackupError': str(state.get('lastBackupError', '')),
+            }
+    except Exception:
+        return {'lastBackupAt': '', 'lastBackupError': ''}
+
+
+def write_backup_state(state):
+    ensure_exports_dir()
+    with open(BACKUP_STATE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def is_admin_request():
+    if not ADMIN_ACCESS_KEY:
+        return False
+    candidate = request.headers.get('X-Admin-Key', '')
+    return candidate == ADMIN_ACCESS_KEY
+
+
+def require_admin_response():
+    return jsonify({'error': 'Acesso restrito ao administrador'}), 403
+
+
+def github_backup_enabled():
+    return bool(GITHUB_BACKUP_REPO and GITHUB_BACKUP_TOKEN)
+
+
+def _github_api(method, path, payload=None):
+    url = f'https://api.github.com{path}'
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode('utf-8')
+
+    req = urllib_request.Request(url=url, method=method, data=data)
+    req.add_header('Accept', 'application/vnd.github+json')
+    req.add_header('Authorization', f'Bearer {GITHUB_BACKUP_TOKEN}')
+    req.add_header('X-GitHub-Api-Version', '2022-11-28')
+    req.add_header('User-Agent', 'observa-pe-backup')
+    if data is not None:
+        req.add_header('Content-Type', 'application/json')
+
+    try:
+        with urllib_request.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode('utf-8')
+            return resp.status, json.loads(raw) if raw else {}
+    except urllib_error.HTTPError as err:
+        body = err.read().decode('utf-8', errors='ignore') if hasattr(err, 'read') else ''
+        try:
+            parsed = json.loads(body) if body else {}
+        except Exception:
+            parsed = {'message': body}
+        return err.code, parsed
+
+
+def _github_upsert_json(path, obj, message):
+    content = json.dumps(obj, ensure_ascii=False, indent=2)
+    encoded = base64.b64encode(content.encode('utf-8')).decode('ascii')
+
+    get_path = f'/repos/{GITHUB_BACKUP_REPO}/contents/{path}?ref={GITHUB_BACKUP_BRANCH}'
+    status, current = _github_api('GET', get_path)
+    sha = current.get('sha') if status == 200 and isinstance(current, dict) else None
+
+    payload = {
+        'message': message,
+        'content': encoded,
+        'branch': GITHUB_BACKUP_BRANCH,
+    }
+    if sha:
+        payload['sha'] = sha
+
+    put_path = f'/repos/{GITHUB_BACKUP_REPO}/contents/{path}'
+    put_status, put_data = _github_api('PUT', put_path, payload)
+    return put_status, put_data
+
+
+def backup_accidents_to_github(accidents):
+    if not github_backup_enabled():
+        return {'enabled': False, 'message': 'Backup GitHub nao configurado'}
+
+    now = datetime.now()
+    day_label = now.strftime('%Y-%m-%d')
+    base_path = GITHUB_BACKUP_PATH.strip('/').strip()
+    latest_path = f'{base_path}/accidents_latest.json' if base_path else 'accidents_latest.json'
+    daily_path = f'{base_path}/accidents_{day_label}.json' if base_path else f'accidents_{day_label}.json'
+
+    st_latest, _ = _github_upsert_json(
+        latest_path,
+        {'generatedAt': now.isoformat(), 'records': accidents},
+        f'Backup atualizado ({now.strftime("%d/%m/%Y %H:%M:%S")})'
+    )
+    st_daily, _ = _github_upsert_json(
+        daily_path,
+        {'generatedAt': now.isoformat(), 'records': accidents},
+        f'Backup diario {day_label}'
+    )
+
+    ok = st_latest in (200, 201) and st_daily in (200, 201)
+    state = {
+        'lastBackupAt': now.strftime('%d/%m/%Y %H:%M:%S') if ok else '',
+        'lastBackupError': '' if ok else f'Falha GitHub ({st_latest}/{st_daily})'
+    }
+    write_backup_state(state)
+    return {
+        'enabled': True,
+        'ok': ok,
+        'statusLatest': st_latest,
+        'statusDaily': st_daily,
+        'repo': GITHUB_BACKUP_REPO,
+        'branch': GITHUB_BACKUP_BRANCH,
+        'path': base_path or '/'
+    }
 
 
 def read_export_state():
@@ -398,19 +531,33 @@ def get_accidents():
 
 @app.route('/api/exports', methods=['GET'])
 def get_exports_status():
+    if not is_admin_request():
+        return require_admin_response()
+
     accidents = load_accidents()
     schedule = ensure_scheduled_daily_exports(accidents)
     info = generate_all_exports(accidents)
+    backup_state = read_backup_state()
     return jsonify({
         'success': True,
         'records': len(accidents),
         'exports': info,
-        'scheduledDaily': schedule
+        'scheduledDaily': schedule,
+        'backup': {
+            'githubEnabled': github_backup_enabled(),
+            'repo': GITHUB_BACKUP_REPO,
+            'branch': GITHUB_BACKUP_BRANCH,
+            'path': GITHUB_BACKUP_PATH,
+            **backup_state
+        }
     })
 
 
 @app.route('/api/exports/download/<period>', methods=['GET'])
 def download_export(period):
+    if not is_admin_request():
+        return require_admin_response()
+
     if period not in {'daily', 'weekly', 'monthly'}:
         return jsonify({'error': 'Periodo invalido. Use daily, weekly ou monthly.'}), 400
 
@@ -440,6 +587,9 @@ def download_export(period):
 
 @app.route('/api/exports/download/daily-map', methods=['GET'])
 def download_daily_map():
+    if not is_admin_request():
+        return require_admin_response()
+
     accidents = load_accidents()
     ensure_scheduled_daily_exports(accidents)
     latest_file = os.path.join(EXPORTS_DIR, 'mapa_pe_diario_latest.html')
@@ -452,6 +602,32 @@ def download_daily_map():
         download_name='mapa_pe_diario_latest.html',
         mimetype='text/html'
     )
+
+
+@app.route('/api/admin/auth', methods=['POST'])
+def admin_auth():
+    data = request.get_json(silent=True) or {}
+    key = str(data.get('key', ''))
+
+    if not ADMIN_ACCESS_KEY:
+        return jsonify({'success': False, 'error': 'ADMIN_ACCESS_KEY nao configurada no servidor'}), 503
+
+    if key == ADMIN_ACCESS_KEY:
+        return jsonify({'success': True})
+
+    return jsonify({'success': False, 'error': 'Chave de administrador invalida'}), 403
+
+
+@app.route('/api/admin/backup-now', methods=['POST'])
+def admin_backup_now():
+    if not is_admin_request():
+        return require_admin_response()
+
+    accidents = load_accidents()
+    result = backup_accidents_to_github(accidents)
+    if result.get('enabled') and not result.get('ok', True):
+        return jsonify({'success': False, 'backup': result}), 502
+    return jsonify({'success': True, 'backup': result})
 
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
@@ -508,6 +684,7 @@ def add_accident():
         save_accidents(accidents)
         ensure_scheduled_daily_exports(accidents)
         generate_all_exports(accidents)
+        backup_accidents_to_github(accidents)
 
         return jsonify({'success': True, 'message': 'Acidente reportado com sucesso!', 'id': accident['id']})
 

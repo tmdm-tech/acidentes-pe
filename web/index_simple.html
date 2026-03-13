@@ -580,8 +580,11 @@
       <h2>Registros</h2>
       <div class="actions" style="margin-top:0; margin-bottom: 10px;">
         <button type="button" class="secondary" id="btn-refresh">Atualizar lista</button>
+        <button type="button" class="secondary" id="btn-admin-login">Entrar como administrador</button>
+        <button type="button" class="secondary" id="btn-admin-logout" hidden>Sair do modo admin</button>
+        <button type="button" class="secondary" id="btn-admin-backup" hidden>Backup privado (GitHub)</button>
       </div>
-      <div class="export-bar">
+      <div class="export-bar" id="export-bar" hidden>
         <button type="button" class="secondary" id="btn-download-daily">Baixar planilha diaria</button>
         <button type="button" class="secondary" id="btn-download-daily-map">Baixar mapa diario (PE)</button>
         <button type="button" class="secondary" id="btn-download-weekly">Baixar planilha semanal</button>
@@ -625,6 +628,10 @@
     const btnLocationOnce = document.getElementById('btn-location-once');
     const btnSync = document.getElementById('btn-sync');
     const btnRefresh = document.getElementById('btn-refresh');
+    const btnAdminLogin = document.getElementById('btn-admin-login');
+    const btnAdminLogout = document.getElementById('btn-admin-logout');
+    const btnAdminBackup = document.getElementById('btn-admin-backup');
+    const exportBar = document.getElementById('export-bar');
     const btnDownloadDaily = document.getElementById('btn-download-daily');
     const btnDownloadDailyMap = document.getElementById('btn-download-daily-map');
     const btnDownloadWeekly = document.getElementById('btn-download-weekly');
@@ -666,7 +673,74 @@
     const PAGE_SIZE = 10;
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
+    const ADMIN_KEY_STORAGE = 'observa_admin_key_v1';
     const STREET_ZOOM = 16;
+    let adminAccessKey = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+
+    function adminHeaders() {
+      return adminAccessKey ? { 'X-Admin-Key': adminAccessKey } : {};
+    }
+
+    function setAdminMode(enabled) {
+      exportBar.hidden = !enabled;
+      btnAdminLogout.hidden = !enabled;
+      btnAdminBackup.hidden = !enabled;
+      btnAdminLogin.hidden = enabled;
+    }
+
+    async function validateAdminKey(key) {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.success) {
+        throw new Error(body.error || 'Falha na autenticacao');
+      }
+      return true;
+    }
+
+    async function promptAdminLogin() {
+      const typed = window.prompt('Digite sua chave de administrador:');
+      if (!typed) return;
+
+      try {
+        await validateAdminKey(typed.trim());
+        adminAccessKey = typed.trim();
+        localStorage.setItem(ADMIN_KEY_STORAGE, adminAccessKey);
+        setAdminMode(true);
+        setStatus('Modo administrador ativado.', 'ok');
+      } catch (err) {
+        setStatus('Nao foi possivel ativar modo admin: ' + err.message, 'error');
+      }
+    }
+
+    function logoutAdmin() {
+      adminAccessKey = '';
+      localStorage.removeItem(ADMIN_KEY_STORAGE);
+      setAdminMode(false);
+      setStatus('Modo administrador desativado.', '');
+    }
+
+    async function triggerPrivateBackup() {
+      try {
+        const response = await fetch('/api/admin/backup-now', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...adminHeaders()
+          }
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success) {
+          throw new Error(body.error || 'Falha no backup');
+        }
+        setStatus('Backup privado enviado com sucesso.', 'ok');
+      } catch (err) {
+        setStatus('Falha no backup privado: ' + err.message, 'error');
+      }
+    }
 
     const PE_BOUNDS = {
       latMin: -9.50,
@@ -1054,7 +1128,9 @@
       setStatus(`Preparando planilha ${periodLabel}...`, '');
 
       try {
-        const response = await fetch('/api/exports/download/' + period);
+        const response = await fetch('/api/exports/download/' + period, {
+          headers: { ...adminHeaders() }
+        });
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
           throw new Error(body.error || 'Nao foi possivel gerar a planilha');
@@ -1084,7 +1160,9 @@
       setStatus('Preparando mapa diario de Pernambuco...', '');
 
       try {
-        const response = await fetch('/api/exports/download/daily-map');
+        const response = await fetch('/api/exports/download/daily-map', {
+          headers: { ...adminHeaders() }
+        });
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
           throw new Error(body.error || 'Nao foi possivel gerar o mapa diario');
@@ -1167,6 +1245,9 @@
     });
 
     btnRefresh.addEventListener('click', loadAccidents);
+    btnAdminLogin.addEventListener('click', promptAdminLogin);
+    btnAdminLogout.addEventListener('click', logoutAdmin);
+    btnAdminBackup.addEventListener('click', triggerPrivateBackup);
     btnSync.addEventListener('click', syncOfflineReports);
     btnDownloadDaily.addEventListener('click', () => downloadSpreadsheet('daily'));
     btnDownloadDailyMap.addEventListener('click', downloadDailyMap);
@@ -1364,6 +1445,13 @@
         btnSubmit.disabled = false;
       }
     });
+
+    setAdminMode(false);
+    if (adminAccessKey) {
+      validateAdminKey(adminAccessKey)
+        .then(() => setAdminMode(true))
+        .catch(() => logoutAdmin());
+    }
 
     updateOfflineInfo();
     initLeafletMap();

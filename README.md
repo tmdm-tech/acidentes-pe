@@ -125,6 +125,36 @@ Recursos já ativos:
 - Mapa diário de Pernambuco com pontos dos acidentes
 - Registros permanentes (remoção desativada)
 
+## 🔐 Controle restrito ao administrador
+
+As funcoes de manipulacao de registros (download de planilhas/mapas e backup) sao exclusivas do administrador.
+
+Configure no Render:
+
+- `ADMIN_ACCESS_KEY=uma_chave_forte_somente_sua`
+
+No app:
+
+1. Clique em **Entrar como administrador**.
+2. Informe sua chave.
+3. Os botoes de download e backup serao habilitados apenas para voce.
+
+Usuarios comuns:
+
+- conseguem apenas visualizar e registrar sinistros.
+- nao conseguem baixar planilhas/mapas.
+
+## 🗄️ Armazenamento privado opcional no GitHub
+
+Para manter uma copia privada automatica dos registros no GitHub (repo privado), configure no Render:
+
+- `GITHUB_BACKUP_REPO=seu-user/seu-repo-privado`
+- `GITHUB_BACKUP_TOKEN=seu_token_com_permissao_repo`
+- `GITHUB_BACKUP_BRANCH=main` (opcional)
+- `GITHUB_BACKUP_PATH=observa_backup` (opcional)
+
+Depois, no app em modo administrador, use o botao **Backup privado (GitHub)**.
+
 ## 🐛 Troubleshooting
 
 **Servidor não inicia:**
