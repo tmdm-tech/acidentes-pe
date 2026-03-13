@@ -11,18 +11,19 @@ import time
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
 
-# Arquivo para armazenar acidentes
-ACCIDENTS_FILE = 'accidents.json'
 WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000
-EXPORTS_DIR = 'exports'
+DATA_DIR = os.environ.get('DATA_DIR', '.')
+ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
+EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
 EXPORT_STATE_FILE = os.path.join(EXPORTS_DIR, 'daily_export_state.json')
 SCHEDULER_STARTED = False
 
 
 def ensure_exports_dir():
+    os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(EXPORTS_DIR, exist_ok=True)
 
 

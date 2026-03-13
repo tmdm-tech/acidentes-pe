@@ -103,6 +103,28 @@ Cada relatório de acidente inclui:
 - Acesso restrito à rede local
 - Não há transmissão para servidores externos
 
+## ☁️ Configuração no Render (o que faltava)
+
+Para a versão nova funcionar no Render com persistência permanente:
+
+1. **Build Command**
+	- `pip install -r requirements.txt`
+2. **Start Command**
+	- `python -m gunicorn server:app --bind 0.0.0.0:$PORT`
+3. **Environment Variable**
+	- `DATA_DIR=/var/data`
+4. **Persistent Disk**
+	- Mount path: `/var/data`
+
+Com isso, o app grava `accidents.json` e `exports/` em disco persistente e os registros não se perdem em restart/deploy.
+
+Recursos já ativos:
+
+- Geração diária automática às 08:00 do dia seguinte
+- Planilha diária
+- Mapa diário de Pernambuco com pontos dos acidentes
+- Registros permanentes (remoção desativada)
+
 ## 🐛 Troubleshooting
 
 **Servidor não inicia:**
