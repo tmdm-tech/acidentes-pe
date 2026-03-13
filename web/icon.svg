@@ -1,15 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="ObservaTransito PE">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#facc15"/>
-      <stop offset="0.35" stop-color="#1d4ed8"/>
-      <stop offset="0.7" stop-color="#15803d"/>
+      <stop offset="0.32" stop-color="#1d4ed8"/>
+      <stop offset="0.68" stop-color="#15803d"/>
       <stop offset="1" stop-color="#dc2626"/>
     </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#f8fafc" stop-opacity="1"/>
+    </linearGradient>
   </defs>
-  <rect x="12" y="12" width="232" height="232" rx="52" fill="url(#g)"/>
-  <path d="M68 168h120" stroke="#fff" stroke-width="16" stroke-linecap="round"/>
-  <path d="M68 104h120" stroke="#fff" stroke-width="16" stroke-linecap="round" opacity="0.9"/>
-  <circle cx="92" cy="136" r="18" fill="#fff"/>
-  <circle cx="164" cy="136" r="18" fill="#fff"/>
+  <rect x="12" y="12" width="232" height="232" rx="56" fill="url(#bg)"/>
+  <circle cx="128" cy="84" r="34" fill="rgba(255,255,255,0.25)"/>
+  <path d="M128 50c-21 0-38 17-38 38 0 28 38 69 38 69s38-41 38-69c0-21-17-38-38-38zm0 52a14 14 0 1 1 0-28 14 14 0 0 1 0 28z" fill="#fff"/>
+  <path d="M58 170c0-10 8-18 18-18h104c10 0 18 8 18 18v16c0 10-8 18-18 18H76c-10 0-18-8-18-18z" fill="url(#road)"/>
+  <path d="M92 178h72" stroke="#1d4ed8" stroke-width="8" stroke-linecap="round" stroke-dasharray="16 14"/>
+  <circle cx="96" cy="195" r="8" fill="#0f172a"/>
+  <circle cx="160" cy="195" r="8" fill="#0f172a"/>
 </svg>

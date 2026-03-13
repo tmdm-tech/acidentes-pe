@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 import json
 import os
+import csv
 from datetime import datetime
 import socket
 
@@ -14,6 +15,108 @@ WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000
+EXPORTS_DIR = 'exports'
+
+
+def ensure_exports_dir():
+    os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+
+def parse_accident_datetime(item):
+    item_id = item.get('id', '')
+    try:
+        ts = int(str(item_id))
+        return datetime.fromtimestamp(ts / 1000)
+    except (TypeError, ValueError):
+        pass
+
+    text = item.get('dataHora', '')
+    try:
+        return datetime.strptime(text, '%d/%m/%Y %H:%M:%S')
+    except (TypeError, ValueError):
+        return datetime.now()
+
+
+def period_label(dt, period):
+    if period == 'daily':
+        return dt.strftime('%Y-%m-%d')
+    if period == 'weekly':
+        iso = dt.isocalendar()
+        return f'{iso.year}-W{iso.week:02d}'
+    if period == 'monthly':
+        return dt.strftime('%Y-%m')
+    return dt.strftime('%Y-%m-%d')
+
+
+def write_export_csv(period, accidents):
+    ensure_exports_dir()
+    now = datetime.now()
+    ts = now.strftime('%Y%m%d_%H%M%S')
+    period_slug = {
+        'daily': 'diario',
+        'weekly': 'semanal',
+        'monthly': 'mensal'
+    }.get(period, period)
+
+    archived_name = f'acidentes_{period_slug}_{ts}.csv'
+    latest_name = f'acidentes_{period_slug}_latest.csv'
+    archived_path = os.path.join(EXPORTS_DIR, archived_name)
+    latest_path = os.path.join(EXPORTS_DIR, latest_name)
+
+    headers = [
+        'id',
+        'periodo',
+        'data_hora_registro',
+        'nome_notificante',
+        'cpf',
+        'endereco',
+        'latitude',
+        'longitude',
+        'descricao',
+        'quantidade_fotos',
+        'tempo_registro_segundos'
+    ]
+
+    with open(archived_path, 'w', encoding='utf-8-sig', newline='') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=headers)
+        writer.writeheader()
+        for item in accidents:
+            dt = parse_accident_datetime(item)
+            photos = item.get('fotos') if isinstance(item.get('fotos'), list) else []
+            writer.writerow({
+                'id': item.get('id', ''),
+                'periodo': period_label(dt, period),
+                'data_hora_registro': item.get('dataHora', ''),
+                'nome_notificante': item.get('nomeNotificante', ''),
+                'cpf': item.get('cpf', ''),
+                'endereco': item.get('endereco', ''),
+                'latitude': item.get('latitude', ''),
+                'longitude': item.get('longitude', ''),
+                'descricao': item.get('descricao', ''),
+                'quantidade_fotos': len(photos),
+                'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
+            })
+
+    with open(archived_path, 'r', encoding='utf-8-sig', newline='') as src:
+        content = src.read()
+    with open(latest_path, 'w', encoding='utf-8-sig', newline='') as dst:
+        dst.write(content)
+
+    return {
+        'period': period,
+        'archived': archived_name,
+        'latest': latest_name,
+        'totalRecords': len(accidents),
+        'generatedAt': now.strftime('%d/%m/%Y %H:%M:%S')
+    }
+
+
+def generate_all_exports(accidents):
+    return {
+        'daily': write_export_csv('daily', accidents),
+        'weekly': write_export_csv('weekly', accidents),
+        'monthly': write_export_csv('monthly', accidents)
+    }
 
 def load_accidents():
     if os.path.exists(ACCIDENTS_FILE):
@@ -54,6 +157,33 @@ def serve_static(filename):
 def get_accidents():
     accidents = load_accidents()
     return jsonify(accidents)
+
+
+@app.route('/api/exports', methods=['GET'])
+def get_exports_status():
+    accidents = load_accidents()
+    info = generate_all_exports(accidents)
+    return jsonify({
+        'success': True,
+        'records': len(accidents),
+        'exports': info
+    })
+
+
+@app.route('/api/exports/download/<period>', methods=['GET'])
+def download_export(period):
+    if period not in {'daily', 'weekly', 'monthly'}:
+        return jsonify({'error': 'Periodo invalido. Use daily, weekly ou monthly.'}), 400
+
+    accidents = load_accidents()
+    info = write_export_csv(period, accidents)
+    latest_file = info['latest']
+    return send_file(
+        os.path.join(EXPORTS_DIR, latest_file),
+        as_attachment=True,
+        download_name=latest_file,
+        mimetype='text/csv'
+    )
 
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
@@ -108,6 +238,7 @@ def add_accident():
         accidents = load_accidents()
         accidents.append(accident)
         save_accidents(accidents)
+        generate_all_exports(accidents)
 
         return jsonify({'success': True, 'message': 'Acidente reportado com sucesso!', 'id': accident['id']})
 

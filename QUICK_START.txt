@@ -26,7 +26,7 @@ PASSO 1️⃣  - CRIAR REPOSITÓRIO NO GITHUB
 │ 5. Selecione "New repository"                              │
 │ 6. Preencha:                                               │
 │    - Repository name: acidentes-pe                         │
-│    - Description: App de reporte de acidentes              │
+│    - Description: App de sinistro de transito              │
 │    - Selecione: PUBLIC                                     │
 │    - Desmarque "Add a README.md"                           │
 │ 7. Clique em "Create repository"                           │

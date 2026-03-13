@@ -9,4 +9,6 @@ COPY . .
 
 ENV PORT=8000
 
+EXPOSE 8000
+
 CMD ["sh", "-c", "gunicorn server:app --bind 0.0.0.0:${PORT}"]

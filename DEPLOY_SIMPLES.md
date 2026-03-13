@@ -27,7 +27,7 @@ Seu app será acessível de **QUALQUER LUGAR** por QUALQUER PESSOA com internet!
 2. Selecione **New repository**
 3. Preencha:
    - **Repository name**: `acidentes-pe` ou `observatrafego`
-   - **Description**: `App de reporte de acidentes`
+   - **Description**: `App de sinistro de transito`
    - **Public** (assim qualquer um consegue acessar)
    - Desmarque "Add a README.md" (já tem)
 4. Clique **Create repository**

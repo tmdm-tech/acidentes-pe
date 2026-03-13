@@ -1,4 +1,4 @@
-# ObservaTrânsito - App de Reporte de Acidentes
+# ObservaTrânsito - App de Sinistro de Trânsito
 
 Aplicativo web para reportar acidentes de trânsito em Pernambuco, com funcionalidades de localização GPS, upload de fotos e armazenamento centralizado de dados.
 
@@ -53,6 +53,21 @@ ipconfig getifaddr en0
 - **Armazenamento**: JSON local
 - **Geolocalização**: API do navegador
 
+## 🍎 Publicação na Apple App Store
+
+Este repositório já foi preparado com base de empacotamento iOS via Capacitor.
+
+Siga o guia completo em:
+
+- `APP_STORE_IOS_PREPARACAO.md`
+
+Resumo rápido:
+
+1. Instalar Xcode no Mac (App Store)
+2. Rodar `npm install`, `npm run ios:init`, `npm run ios:sync`, `npm run ios:open`
+3. Configurar assinatura (`Signing & Capabilities`) no Xcode
+4. Gerar archive e enviar para App Store Connect
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -79,7 +94,7 @@ Cada relatório de acidente inclui:
 - Nome e CPF do usuário
 - Coordenadas GPS (latitude/longitude)
 - Fotos do acidente
-- Data e hora do reporte
+- Data e hora do sinistro
 - Status do acidente
 
 ## 🔒 Privacidade
