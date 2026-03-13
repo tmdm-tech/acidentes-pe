@@ -120,3 +120,20 @@ Cada relatório de acidente inclui:
 ---
 
 **Desenvolvido para Pernambuco** 🇧🇷
+
+## Atualizacoes de Operacao (Geracao Diaria e Persistencia)
+
+- Planilhas e mapa diario de Pernambuco sao gerados automaticamente as 08:00 para consolidar os dados do dia anterior.
+- Endpoints disponiveis para consumo dessas saidas:
+	- `GET /api/exports`
+	- `GET /api/exports/download/daily`
+	- `GET /api/exports/download/daily-map`
+- A API mantem os registros de acidentes de forma permanente.
+- O endpoint de exclusao foi desativado para impedir remocao de historico.
+
+Arquivos gerados automaticamente em `exports/`:
+
+- `acidentes_diario_YYYY-MM-DD.csv`
+- `mapa_pe_diario_YYYY-MM-DD.html`
+- `acidentes_diario_latest.csv`
+- `mapa_pe_diario_latest.html`

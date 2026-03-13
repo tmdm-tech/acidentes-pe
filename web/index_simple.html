@@ -583,6 +583,7 @@
       </div>
       <div class="export-bar">
         <button type="button" class="secondary" id="btn-download-daily">Baixar planilha diaria</button>
+        <button type="button" class="secondary" id="btn-download-daily-map">Baixar mapa diario (PE)</button>
         <button type="button" class="secondary" id="btn-download-weekly">Baixar planilha semanal</button>
         <button type="button" class="secondary" id="btn-download-monthly">Baixar planilha mensal</button>
         <span class="badge">Visualizacao agrupada de 10 em 10</span>
@@ -625,6 +626,7 @@
     const btnSync = document.getElementById('btn-sync');
     const btnRefresh = document.getElementById('btn-refresh');
     const btnDownloadDaily = document.getElementById('btn-download-daily');
+    const btnDownloadDailyMap = document.getElementById('btn-download-daily-map');
     const btnDownloadWeekly = document.getElementById('btn-download-weekly');
     const btnDownloadMonthly = document.getElementById('btn-download-monthly');
     const btnPrevPage = document.getElementById('btn-prev-page');
@@ -1056,6 +1058,36 @@
       }
     }
 
+    async function downloadDailyMap() {
+      setStatus('Preparando mapa diario de Pernambuco...', '');
+
+      try {
+        const response = await fetch('/api/exports/download/daily-map');
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || 'Nao foi possivel gerar o mapa diario');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const fileNameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const fileName = fileNameMatch ? fileNameMatch[1] : 'mapa_pe_diario_latest.html';
+
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+
+        setStatus('Mapa diario baixado com sucesso.', 'ok');
+      } catch (err) {
+        setStatus('Falha ao baixar mapa diario: ' + err.message, 'error');
+      }
+    }
+
     function setStatus(message, type) {
       statusEl.textContent = message;
       statusEl.className = 'status ' + (type || '');
@@ -1115,6 +1147,7 @@
     btnRefresh.addEventListener('click', loadAccidents);
     btnSync.addEventListener('click', syncOfflineReports);
     btnDownloadDaily.addEventListener('click', () => downloadSpreadsheet('daily'));
+    btnDownloadDailyMap.addEventListener('click', downloadDailyMap);
     btnDownloadWeekly.addEventListener('click', () => downloadSpreadsheet('weekly'));
     btnDownloadMonthly.addEventListener('click', () => downloadSpreadsheet('monthly'));
     btnPrevPage.addEventListener('click', () => {
