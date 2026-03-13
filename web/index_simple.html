@@ -32,8 +32,27 @@
       margin: 0;
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--text);
-      background: linear-gradient(160deg, #fffde8 0%, #eaf2ff 45%, #eefcf0 100%);
+      background:
+        radial-gradient(circle at 12% 15%, rgba(250, 204, 21, 0.35), transparent 30%),
+        radial-gradient(circle at 85% 20%, rgba(29, 78, 216, 0.26), transparent 32%),
+        radial-gradient(circle at 76% 84%, rgba(21, 128, 61, 0.26), transparent 36%),
+        radial-gradient(circle at 14% 86%, rgba(220, 38, 38, 0.24), transparent 30%),
+        linear-gradient(160deg, #fffde8 0%, #eaf2ff 45%, #eefcf0 100%);
       min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -20% -10% auto -10%;
+      height: 55vh;
+      background: linear-gradient(115deg, rgba(250, 204, 21, 0.24), rgba(29, 78, 216, 0.14), rgba(21, 128, 61, 0.2), rgba(220, 38, 38, 0.16));
+      filter: blur(46px);
+      pointer-events: none;
+      z-index: -1;
+      animation: floatGlow 8s ease-in-out infinite;
     }
 
     .hero {
@@ -72,6 +91,7 @@
       display: grid;
       gap: 16px;
       grid-template-columns: 1fr;
+      animation: riseIn 0.55s ease-out both;
     }
 
     .card {
@@ -80,6 +100,12 @@
       border-radius: 14px;
       padding: 16px;
       box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
+      transition: transform 0.28s ease, box-shadow 0.28s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(2, 6, 23, 0.1);
     }
 
     .card h2 {
@@ -404,6 +430,58 @@
       font-size: 0.95rem;
     }
 
+    .export-bar {
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pagination {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .page-info {
+      font-size: 0.9rem;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-left: 8px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.76rem;
+      color: #1e3a8a;
+      background: #dbeafe;
+      border: 1px solid #bfdbfe;
+      font-weight: 700;
+    }
+
+    @keyframes floatGlow {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(0, 16px, 0) scale(1.03); }
+      100% { transform: translate3d(0, 0, 0) scale(1); }
+    }
+
+    @keyframes riseIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     @media (max-width: 700px) {
       .grid { grid-template-columns: 1fr; }
       th:nth-child(3), td:nth-child(3),
@@ -426,21 +504,21 @@
 
   <header class="hero">
     <h1>ObservaTransito PE</h1>
-    <p>Reporte de acidentes com registro centralizado</p>
+    <p>Sinistro de transito com registro centralizado</p>
     <div class="palette" aria-hidden="true"></div>
   </header>
 
   <main class="container">
     <section class="card">
-      <h2>Novo reporte</h2>
+      <h2>Novo sinistro</h2>
       <form id="accident-form">
         <div class="grid">
           <div class="field">
-            <label for="nomeNotificante">Nome do notificante</label>
+            <label for="nomeNotificante">Instituição</label>
             <input id="nomeNotificante" required>
           </div>
           <div class="field">
-            <label for="cpf">CPF</label>
+            <label for="cpf">Nome do notificante</label>
             <input id="cpf" required>
           </div>
           <div class="field full">
@@ -474,7 +552,8 @@
           <div class="field full">
             <label for="fotos">Fotos do sinistro</label>
             <input id="fotos" type="file" accept="image/*" multiple>
-            <div class="photo-help">Selecione ate 5 fotos. As imagens sao compactadas antes do envio.</div>
+            <input id="fotosCamera" type="file" accept="image/*" capture="environment">
+            <div class="photo-help">Escolha fotos da galeria ou tire uma foto com a camera. Limite de 5 imagens; as fotos sao compactadas antes do envio.</div>
             <div id="preview" class="preview-grid"></div>
           </div>
         </div>
@@ -483,7 +562,7 @@
           <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
           <button type="button" class="secondary" id="btn-location">&#128260; Rastrear em tempo real</button>
           <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
-          <button type="submit" id="btn-submit">Salvar reporte</button>
+          <button type="submit" id="btn-submit">Salvar sinistro</button>
         </div>
         <div class="install-box">
           <p><strong>📲 Instalar app no celular</strong></p>
@@ -501,6 +580,12 @@
       <h2>Registros</h2>
       <div class="actions" style="margin-top:0; margin-bottom: 10px;">
         <button type="button" class="secondary" id="btn-refresh">Atualizar lista</button>
+      </div>
+      <div class="export-bar">
+        <button type="button" class="secondary" id="btn-download-daily">Baixar planilha diaria</button>
+        <button type="button" class="secondary" id="btn-download-weekly">Baixar planilha semanal</button>
+        <button type="button" class="secondary" id="btn-download-monthly">Baixar planilha mensal</button>
+        <span class="badge">Visualizacao agrupada de 10 em 10</span>
       </div>
       <div id="offline-info" class="map-caption"></div>
       <div id="empty" class="empty">Carregando registros...</div>
@@ -520,6 +605,13 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
+      <div class="pagination">
+        <div class="actions" style="margin-top:0;">
+          <button type="button" class="secondary" id="btn-prev-page">Pagina anterior</button>
+          <button type="button" class="secondary" id="btn-next-page">Proxima pagina</button>
+        </div>
+        <div id="page-info" class="page-info">Pagina 1 de 1</div>
+      </div>
     </section>
   </main>
 
@@ -532,10 +624,17 @@
     const btnLocationOnce = document.getElementById('btn-location-once');
     const btnSync = document.getElementById('btn-sync');
     const btnRefresh = document.getElementById('btn-refresh');
+    const btnDownloadDaily = document.getElementById('btn-download-daily');
+    const btnDownloadWeekly = document.getElementById('btn-download-weekly');
+    const btnDownloadMonthly = document.getElementById('btn-download-monthly');
+    const btnPrevPage = document.getElementById('btn-prev-page');
+    const btnNextPage = document.getElementById('btn-next-page');
+    const pageInfo = document.getElementById('page-info');
     const table = document.getElementById('table');
     const rows = document.getElementById('rows');
     const empty = document.getElementById('empty');
     const photosInput = document.getElementById('fotos');
+    const photosCameraInput = document.getElementById('fotosCamera');
     const preview = document.getElementById('preview');
     const btnInstall = document.getElementById('btn-install');
     const btnInstallHelp = document.getElementById('btn-install-help');
@@ -559,6 +658,9 @@
     let leafletMarker = null;
     let leafletAccuracyCircle = null;
     let gpsWatchId = null;
+    let renderedItems = [];
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
 
@@ -871,6 +973,89 @@
       return `<div class="thumbs">${shown}${extra}</div>`;
     }
 
+    function buildTableRow(item) {
+      const ts = getTimestampFromItem(item);
+      const tr = document.createElement('tr');
+      const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
+      tr.innerHTML = `
+        <td>${item.dataHora || '-'} ${offChip}</td>
+        <td>${item.endereco || '-'}</td>
+        <td>${item.nomeNotificante || '-'}</td>
+        <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
+        <td>${buildThumbs(item)}</td>
+        <td><span class="timer-chip" data-ts="${ts}">--</span></td>
+        <td>${item.descricao || '-'}</td>
+      `;
+      rows.appendChild(tr);
+    }
+
+    function renderCurrentPage() {
+      rows.innerHTML = '';
+      const total = renderedItems.length;
+      if (total === 0) {
+        table.hidden = true;
+        pageInfo.textContent = 'Pagina 1 de 1';
+        btnPrevPage.disabled = true;
+        btnNextPage.disabled = true;
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      currentPage = Math.min(Math.max(1, currentPage), totalPages);
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = renderedItems.slice(startIndex, startIndex + PAGE_SIZE);
+
+      pageItems.forEach(buildTableRow);
+
+      table.hidden = false;
+      pageInfo.textContent = `Pagina ${currentPage} de ${totalPages} (${total} registros)`;
+      btnPrevPage.disabled = currentPage <= 1;
+      btnNextPage.disabled = currentPage >= totalPages;
+      updateElapsedTimers();
+    }
+
+    function setRenderedItems(items) {
+      renderedItems = Array.isArray(items) ? items : [];
+      currentPage = 1;
+      renderCurrentPage();
+    }
+
+    async function downloadSpreadsheet(period) {
+      const periodLabel = {
+        daily: 'diaria',
+        weekly: 'semanal',
+        monthly: 'mensal'
+      }[period] || period;
+
+      setStatus(`Preparando planilha ${periodLabel}...`, '');
+
+      try {
+        const response = await fetch('/api/exports/download/' + period);
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || 'Nao foi possivel gerar a planilha');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const fileNameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const fileName = fileNameMatch ? fileNameMatch[1] : `acidentes_${period}.csv`;
+
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+
+        setStatus(`Planilha ${periodLabel} baixada com sucesso.`, 'ok');
+      } catch (err) {
+        setStatus('Falha ao baixar planilha: ' + err.message, 'error');
+      }
+    }
+
     function setStatus(message, type) {
       statusEl.textContent = message;
       statusEl.className = 'status ' + (type || '');
@@ -885,31 +1070,15 @@
         const items = await response.json();
         cacheAccidents(items);
 
-        rows.innerHTML = '';
         if (!Array.isArray(items) || items.length === 0) {
           empty.textContent = 'Nenhum acidente registrado ainda.';
           table.hidden = true;
+          setRenderedItems([]);
           return;
         }
 
-        items.slice().reverse().forEach((item) => {
-          const ts = getTimestampFromItem(item);
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${item.dataHora || '-'}</td>
-            <td>${item.endereco || '-'}</td>
-            <td>${item.nomeNotificante || '-'}</td>
-            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
-            <td>${buildThumbs(item)}</td>
-            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
-            <td>${item.descricao || '-'}</td>
-          `;
-          rows.appendChild(tr);
-        });
-
         empty.textContent = '';
-        table.hidden = false;
-        updateElapsedTimers();
+        setRenderedItems(items.slice().reverse());
 
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(updateElapsedTimers, 1000);
@@ -924,32 +1093,15 @@
         }));
         const fallback = [...offlineItems, ...cached];
 
-        rows.innerHTML = '';
         if (!Array.isArray(fallback) || fallback.length === 0) {
           empty.textContent = 'Sem internet e sem cache local.';
           table.hidden = true;
+          setRenderedItems([]);
           return;
         }
 
-        fallback.forEach((item) => {
-          const ts = getTimestampFromItem(item);
-          const tr = document.createElement('tr');
-          const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
-          tr.innerHTML = `
-            <td>${item.dataHora || '-'} ${offChip}</td>
-            <td>${item.endereco || '-'}</td>
-            <td>${item.nomeNotificante || '-'}</td>
-            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
-            <td>${buildThumbs(item)}</td>
-            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
-            <td>${item.descricao || '-'}</td>
-          `;
-          rows.appendChild(tr);
-        });
-
         empty.textContent = 'Mostrando cache local (offline).';
-        table.hidden = false;
-        updateElapsedTimers();
+        setRenderedItems(fallback.slice().reverse());
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(updateElapsedTimers, 1000);
       }
@@ -962,6 +1114,17 @@
 
     btnRefresh.addEventListener('click', loadAccidents);
     btnSync.addEventListener('click', syncOfflineReports);
+    btnDownloadDaily.addEventListener('click', () => downloadSpreadsheet('daily'));
+    btnDownloadWeekly.addEventListener('click', () => downloadSpreadsheet('weekly'));
+    btnDownloadMonthly.addEventListener('click', () => downloadSpreadsheet('monthly'));
+    btnPrevPage.addEventListener('click', () => {
+      currentPage -= 1;
+      renderCurrentPage();
+    });
+    btnNextPage.addEventListener('click', () => {
+      currentPage += 1;
+      renderCurrentPage();
+    });
 
     [latInput, lonInput].forEach((input) => {
       input.addEventListener('change', () => {
@@ -1041,19 +1204,17 @@
       setStatus('Voce esta offline. Registros serao salvos localmente.', 'warn');
     });
 
-    photosInput.addEventListener('change', async (event) => {
-      const files = Array.from(event.target.files || []);
-      if (files.length > 5) {
+    async function appendSelectedPhotos(files) {
+      if (files.length === 0) return;
+
+      if (encodedPhotos.length + files.length > 5) {
         setStatus('Selecione no maximo 5 fotos.', 'error');
-        photosInput.value = '';
-        encodedPhotos = [];
-        renderPreview();
         return;
       }
 
       try {
         setStatus('Processando fotos...', '');
-        const prepared = [];
+        const prepared = [...encodedPhotos];
         for (const file of files) {
           const dataUrl = await fileToDataUrl(file);
           const compressed = await compressImage(dataUrl);
@@ -1063,16 +1224,26 @@
         renderPreview();
         setStatus(`${encodedPhotos.length} foto(s) pronta(s) para envio.`, 'ok');
       } catch (err) {
-        encodedPhotos = [];
-        renderPreview();
         setStatus('Erro ao processar fotos: ' + err.message, 'error');
       }
+    }
+
+    photosInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      await appendSelectedPhotos(files);
+      photosInput.value = '';
+    });
+
+    photosCameraInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      await appendSelectedPhotos(files);
+      photosCameraInput.value = '';
     });
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       btnSubmit.disabled = true;
-      setStatus('Enviando reporte...', '');
+      setStatus('Enviando sinistro...', '');
 
       const payload = {
         localId: String(Date.now()),
@@ -1114,7 +1285,7 @@
         encodedPhotos = [];
         renderPreview();
         resetStopwatch();
-        setStatus('Reporte salvo com sucesso.', 'ok');
+        setStatus('Sinistro salvo com sucesso.', 'ok');
         loadAccidents();
       } catch (err) {
         const queue = getOfflineQueue();

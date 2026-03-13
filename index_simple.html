@@ -372,12 +372,12 @@
             <button class="location-btn" onclick="markCurrentLocation()">📍 Marcar Localização Atual</button>
 
             <div class="form-group">
-                <label for="nome">Nome do Notificante *</label>
+                <label for="nome">Instituição *</label>
                 <input type="text" id="nome" placeholder="Seu nome completo">
             </div>
 
             <div class="form-group">
-                <label for="cpf">CPF *</label>
+                <label for="cpf">Nome do Notificante *</label>
                 <input type="text" id="cpf" placeholder="000.000.000-00">
             </div>
 
@@ -389,6 +389,7 @@
             <div class="form-group">
                 <label for="fotos">📸 Adicionar Fotos</label>
                 <input type="file" id="fotos" accept="image/*" multiple onchange="previewPhotos()">
+                <input type="file" id="fotosCamera" accept="image/*" capture="environment" onchange="previewPhotos()">
                 <div id="photoPreview" class="photo-preview"></div>
             </div>
 
@@ -425,6 +426,7 @@
             document.getElementById('cpf').value = '';
             document.getElementById('descricao').value = '';
             document.getElementById('fotos').value = '';
+            document.getElementById('fotosCamera').value = '';
             document.getElementById('photoPreview').innerHTML = '';
             selectedPhotos = [];
         }
@@ -456,11 +458,24 @@
 
         function previewPhotos() {
             const fileInput = document.getElementById('fotos');
+            const cameraInput = document.getElementById('fotosCamera');
             const preview = document.getElementById('photoPreview');
             preview.innerHTML = '';
             selectedPhotos = [];
 
-            for (let file of fileInput.files) {
+            const allFiles = [
+                ...Array.from(fileInput.files || []),
+                ...Array.from(cameraInput.files || [])
+            ];
+
+            if (allFiles.length > 5) {
+                showNotification('Selecione no máximo 5 fotos!', '#EF4444');
+                fileInput.value = '';
+                cameraInput.value = '';
+                return;
+            }
+
+            for (let file of allFiles) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const img = document.createElement('img');
