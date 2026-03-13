@@ -333,7 +333,7 @@
         </div>
 
         <div class="button-group">
-            <button onclick="openReportModal()">➕ Reportar Acidente</button>
+            <button onclick="openReportModal()">➕ Novo Sinistro</button>
         </div>
 
         <div class="list-container">
@@ -350,7 +350,7 @@
     <div id="reportModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                🚨 Reportar Acidente
+                🚨 Reportar Sinistro
             </div>
 
             <div class="form-group">
@@ -373,17 +373,17 @@
 
             <div class="form-group">
                 <label for="nome">Instituição *</label>
-                <input type="text" id="nome" placeholder="Seu nome completo">
+                <input type="text" id="nome" placeholder="Nome da instituição">
             </div>
 
             <div class="form-group">
                 <label for="cpf">Nome do Notificante *</label>
-                <input type="text" id="cpf" placeholder="000.000.000-00">
+                <input type="text" id="cpf" placeholder="Nome completo do notificante">
             </div>
 
             <div class="form-group">
-                <label for="descricao">Descrição do Acidente *</label>
-                <textarea id="descricao" placeholder="Descreva o acidente em detalhes..."></textarea>
+                <label for="descricao">Breve descrição *</label>
+                <textarea id="descricao" placeholder="Descreva brevemente o sinistro..."></textarea>
             </div>
 
             <div class="form-group">
@@ -395,7 +395,7 @@
 
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeReportModal()">Cancelar</button>
-                <button class="btn-submit" id="submitBtn" onclick="submitReport()">Reportar</button>
+                <button class="btn-submit" id="submitBtn" onclick="submitReport()">Salvar sinistro</button>
             </div>
         </div>
     </div>
@@ -537,7 +537,7 @@
                     loadAccidents(); // Recarregar lista
                     showNotification('Acidente reportado com sucesso!', '#10B981');
                 } else {
-                    showNotification(result.error || 'Erro ao reportar acidente', '#EF4444');
+                    showNotification(result.error || 'Erro ao salvar sinistro', '#EF4444');
                 }
             })
             .catch(error => {
@@ -546,7 +546,7 @@
             })
             .finally(() => {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Reportar';
+                submitBtn.textContent = 'Salvar sinistro';
             });
         }
 
