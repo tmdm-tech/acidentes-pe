@@ -659,12 +659,14 @@
     let leafletMap = null;
     let leafletMarker = null;
     let leafletAccuracyCircle = null;
+    let leafletFocusCircle = null;
     let gpsWatchId = null;
     let renderedItems = [];
     let currentPage = 1;
     const PAGE_SIZE = 10;
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
+    const STREET_ZOOM = 16;
 
     const PE_BOUNDS = {
       latMin: -9.50,
@@ -815,7 +817,7 @@
 
       leafletMap.on('click', (event) => {
         setPointOnMap(event.latlng.lat, event.latlng.lng, true);
-        setStatus('Ponto marcado no mapa de Pernambuco.', 'ok');
+        setStatus('Rua marcada no mapa com foco ampliado.', 'ok');
       });
     }
 
@@ -835,8 +837,28 @@
         leafletMarker.setLatLng([latNum, lonNum]);
       }
 
+      leafletMarker.bindPopup(
+        `Ponto do sinistro<br>Lat: ${latNum.toFixed(6)}<br>Lon: ${lonNum.toFixed(6)}`
+      );
+
+      if (!leafletFocusCircle) {
+        leafletFocusCircle = L.circle([latNum, lonNum], {
+          radius: 25,
+          color: '#ef4444',
+          fillColor: '#f87171',
+          fillOpacity: 0.28,
+          weight: 2
+        }).addTo(leafletMap);
+      } else {
+        leafletFocusCircle.setLatLng([latNum, lonNum]);
+      }
+
       if (recenter) {
-        leafletMap.setView([latNum, lonNum], Math.max(leafletMap.getZoom(), 11));
+        leafletMap.flyTo([latNum, lonNum], Math.max(leafletMap.getZoom(), STREET_ZOOM), {
+          animate: true,
+          duration: 0.5
+        });
+        leafletMarker.openPopup();
       }
     }
 
