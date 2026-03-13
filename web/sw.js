@@ -1,4 +1,4 @@
-const CACHE_NAME = 'observa-pe-v2';
+const CACHE_NAME = 'observa-pe-v3';
 const API_CACHE = 'observa-pe-api-v1';
 const ASSETS = [
   '/',
@@ -38,8 +38,23 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const reqUrl = new URL(event.request.url);
+  const isNavigation = event.request.mode === 'navigate';
 
-  if (reqUrl.pathname === '/api/accidents') {
+  // Evita HTML desatualizado em aba normal: tenta rede primeiro.
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+          return response;
+        })
+        .catch(() => caches.match('/') || caches.match(event.request))
+    );
+    return;
+  }
+
+  if (reqUrl.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
