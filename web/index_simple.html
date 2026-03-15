@@ -33,11 +33,11 @@
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 12% 15%, rgba(250, 204, 21, 0.35), transparent 30%),
-        radial-gradient(circle at 85% 20%, rgba(29, 78, 216, 0.26), transparent 32%),
-        radial-gradient(circle at 76% 84%, rgba(21, 128, 61, 0.26), transparent 36%),
-        radial-gradient(circle at 14% 86%, rgba(220, 38, 38, 0.24), transparent 30%),
-        linear-gradient(160deg, #fffde8 0%, #eaf2ff 45%, #eefcf0 100%);
+        radial-gradient(circle at 14% 86%, rgba(220, 38, 38, 0.28), transparent 30%),
+        radial-gradient(circle at 76% 84%, rgba(21, 128, 61, 0.28), transparent 36%),
+        radial-gradient(circle at 12% 15%, rgba(250, 204, 21, 0.34), transparent 30%),
+        radial-gradient(circle at 85% 20%, rgba(29, 78, 216, 0.28), transparent 32%),
+        linear-gradient(150deg, #dc2626 0%, #15803d 33%, #facc15 66%, #1d4ed8 100%);
       min-height: 100vh;
       position: relative;
       overflow-x: hidden;
@@ -48,7 +48,7 @@
       position: fixed;
       inset: -20% -10% auto -10%;
       height: 55vh;
-      background: linear-gradient(115deg, rgba(250, 204, 21, 0.24), rgba(29, 78, 216, 0.14), rgba(21, 128, 61, 0.2), rgba(220, 38, 38, 0.16));
+      background: linear-gradient(115deg, rgba(220, 38, 38, 0.2), rgba(21, 128, 61, 0.2), rgba(250, 204, 21, 0.2), rgba(29, 78, 216, 0.2));
       filter: blur(46px);
       pointer-events: none;
       z-index: -1;
@@ -56,7 +56,7 @@
     }
 
     .hero {
-      background: linear-gradient(115deg, var(--amarelo) 0%, var(--azul) 35%, var(--verde) 65%, var(--vermelho) 100%);
+      background: linear-gradient(115deg, var(--vermelho) 0%, var(--verde) 33%, var(--amarelo) 66%, var(--azul) 100%);
       color: #fff;
       padding: 32px 18px;
       text-align: center;
@@ -80,7 +80,7 @@
       width: min(420px, 90%);
       height: 10px;
       border-radius: 999px;
-      background: linear-gradient(90deg, var(--amarelo), var(--azul), var(--verde), var(--vermelho));
+      background: linear-gradient(90deg, var(--vermelho), var(--verde), var(--amarelo), var(--azul));
       border: 1px solid rgba(255, 255, 255, 0.65);
     }
 
@@ -197,7 +197,7 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      background: linear-gradient(115deg, var(--amarelo) 0%, var(--azul) 50%, var(--verde) 80%, var(--vermelho) 100%);
+      background: linear-gradient(115deg, var(--vermelho) 0%, var(--verde) 33%, var(--amarelo) 66%, var(--azul) 100%);
       color: #fff;
       padding: 10px 16px;
       display: flex;
@@ -522,7 +522,7 @@
             <input id="cpf" required>
           </div>
           <div class="field full">
-            <label for="endereco">Endereco</label>
+            <label for="endereco">Endereco do Sinistro</label>
             <input id="endereco" required>
           </div>
           <div class="field">
@@ -598,7 +598,7 @@
           <thead>
             <tr>
               <th>Data/Hora</th>
-              <th>Endereco</th>
+              <th>Endereco do Sinistro</th>
               <th>Instituicao</th>
               <th>Coordenadas</th>
               <th>Fotos</th>
@@ -694,6 +694,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key })
       });
+
+      if (response.status === 404) {
+        throw new Error('API de autenticacao nao encontrada. Inicie pelo server.py (Flask), nao por servidor estatico.');
+      }
+
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.success) {
         throw new Error(body.error || 'Falha na autenticacao');
@@ -706,8 +711,9 @@
       if (!typed) return;
 
       try {
-        await validateAdminKey(typed.trim());
-        adminAccessKey = typed.trim();
+        const cleanKey = typed.trim();
+        await validateAdminKey(cleanKey);
+        adminAccessKey = cleanKey;
         localStorage.setItem(ADMIN_KEY_STORAGE, adminAccessKey);
         setAdminMode(true);
         setStatus('Modo administrador ativado.', 'ok');

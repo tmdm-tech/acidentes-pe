@@ -14,6 +14,31 @@ from urllib import error as urllib_error
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
 
+
+def load_dotenv_file(path='.env'):
+    if not os.path.exists(path):
+        return
+
+    try:
+        with open(path, 'r', encoding='utf-8') as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception:
+        # Falha no parser do .env nao deve derrubar a API.
+        pass
+
+
+load_dotenv_file()
+
 WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 MAX_PHOTOS = 5
@@ -23,7 +48,11 @@ ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
 EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
 EXPORT_STATE_FILE = os.path.join(EXPORTS_DIR, 'daily_export_state.json')
 SCHEDULER_STARTED = False
-ADMIN_ACCESS_KEY = os.environ.get('ADMIN_ACCESS_KEY', '')
+ADMIN_ACCESS_KEY = (
+    os.environ.get('ADMIN_ACCESS_KEY', '')
+    or os.environ.get('ADMIN_KEY', '')
+    or os.environ.get('AMIN_KEY', '')
+).strip()
 GITHUB_BACKUP_REPO = os.environ.get('GITHUB_BACKUP_REPO', '')  # owner/repo
 GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
 GITHUB_BACKUP_BRANCH = os.environ.get('GITHUB_BACKUP_BRANCH', 'main')
@@ -62,7 +91,7 @@ def write_backup_state(state):
 def is_admin_request():
     if not ADMIN_ACCESS_KEY:
         return False
-    candidate = request.headers.get('X-Admin-Key', '')
+    candidate = str(request.headers.get('X-Admin-Key', '')).strip()
     return candidate == ADMIN_ACCESS_KEY
 
 
@@ -607,10 +636,14 @@ def download_daily_map():
 @app.route('/api/admin/auth', methods=['POST'])
 def admin_auth():
     data = request.get_json(silent=True) or {}
-    key = str(data.get('key', ''))
+    key = str(data.get('key', '')).strip()
 
     if not ADMIN_ACCESS_KEY:
-        return jsonify({'success': False, 'error': 'ADMIN_ACCESS_KEY nao configurada no servidor'}), 503
+        return jsonify({
+            'success': False,
+            'error': 'ADMIN_ACCESS_KEY nao configurada no servidor',
+            'hint': 'Defina ADMIN_ACCESS_KEY (ou ADMIN_KEY) nas variaveis de ambiente e reinicie o servidor.'
+        }), 503
 
     if key == ADMIN_ACCESS_KEY:
         return jsonify({'success': True})
