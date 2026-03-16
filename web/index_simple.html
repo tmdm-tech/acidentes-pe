@@ -11,7 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
   <style>
     :root {
       --amarelo: #facc15;
@@ -338,6 +339,17 @@
       background: #dbeafe;
     }
 
+    #pe-map.map-loading {
+      background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 50%, #dbeafe 100%);
+      background-size: 220% 100%;
+      animation: mapLoading 1.2s linear infinite;
+    }
+
+    @keyframes mapLoading {
+      from { background-position: 0% 0; }
+      to { background-position: 220% 0; }
+    }
+
     .map-live {
       position: absolute;
       top: 10px;
@@ -489,6 +501,13 @@
         display: none;
       }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -536,7 +555,7 @@
           <div class="field full">
             <label>Mapa de Pernambuco em tempo real</label>
             <div class="map-box">
-              <div id="pe-map" aria-label="Mapa de Pernambuco"></div>
+              <div id="pe-map" class="map-loading" aria-label="Mapa de Pernambuco"></div>
               <div class="map-live"><span class="live-dot"></span>tempo real</div>
             </div>
             <div class="map-caption">Clique no mapa para ajustar o ponto de marcacao ou use o GPS para centralizar sua posicao atual.</div>
@@ -619,7 +638,6 @@
     </section>
   </main>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const form = document.getElementById('accident-form');
     const statusEl = document.getElementById('status');
@@ -670,7 +688,10 @@
     let gpsWatchId = null;
     let renderedItems = [];
     let currentPage = 1;
+    let leafletAssetsPromise = null;
+    let renderJobToken = 0;
     const PAGE_SIZE = 10;
+    const RENDER_BATCH_SIZE = 4;
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
     const ADMIN_KEY_STORAGE = 'observa_admin_key_v1';
@@ -894,11 +915,74 @@
       }).addTo(leafletMap);
 
       leafletMap.fitBounds(bounds);
+      peMap.classList.remove('map-loading');
 
       leafletMap.on('click', (event) => {
         setPointOnMap(event.latlng.lat, event.latlng.lng, true);
         setStatus('Rua marcada no mapa com foco ampliado.', 'ok');
       });
+    }
+
+    function loadLeafletAssets() {
+      if (window.L) return Promise.resolve();
+      if (leafletAssetsPromise) return leafletAssetsPromise;
+
+      leafletAssetsPromise = new Promise((resolve, reject) => {
+        const existingCss = document.querySelector('link[data-leaflet="1"]');
+        const existingJs = document.querySelector('script[data-leaflet="1"]');
+
+        const cssReady = new Promise((cssResolve, cssReject) => {
+          if (existingCss) {
+            cssResolve();
+            return;
+          }
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+          link.crossOrigin = '';
+          link.dataset.leaflet = '1';
+          link.onload = () => cssResolve();
+          link.onerror = () => cssReject(new Error('Falha ao carregar CSS do mapa'));
+          document.head.appendChild(link);
+        });
+
+        const jsReady = new Promise((jsResolve, jsReject) => {
+          if (existingJs && window.L) {
+            jsResolve();
+            return;
+          }
+          if (existingJs && !window.L) {
+            existingJs.addEventListener('load', () => jsResolve(), { once: true });
+            existingJs.addEventListener('error', () => jsReject(new Error('Falha ao carregar JS do mapa')), { once: true });
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+          script.crossOrigin = '';
+          script.dataset.leaflet = '1';
+          script.onload = () => jsResolve();
+          script.onerror = () => jsReject(new Error('Falha ao carregar biblioteca do mapa'));
+          document.body.appendChild(script);
+        });
+
+        Promise.all([cssReady, jsReady]).then(() => resolve()).catch(reject);
+      });
+
+      return leafletAssetsPromise;
+    }
+
+    async function ensureLeafletMapReady() {
+      if (leafletMap) return true;
+      try {
+        await loadLeafletAssets();
+        initLeafletMap();
+        return Boolean(leafletMap);
+      } catch (err) {
+        setStatus('Mapa indisponivel no momento. Verifique sua conexao.', 'warn');
+        return false;
+      }
     }
 
     function setPointOnMap(lat, lon, recenter) {
@@ -962,11 +1046,12 @@
       return Math.max(0, Math.floor((Date.now() - registrationStartedAt) / 1000));
     }
 
-    function getLocationOnce() {
+    async function getLocationOnce() {
       if (!navigator.geolocation) {
         setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
         return;
       }
+      ensureLeafletMapReady();
       setStatus('Capturando localizacao atual...', '');
       btnLocationOnce.disabled = true;
       navigator.geolocation.getCurrentPosition(
@@ -990,6 +1075,8 @@
         setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
         return;
       }
+
+      ensureLeafletMapReady();
 
       if (gpsWatchId !== null) {
         // Desativar rastreamento continuo ao clicar de novo
@@ -1071,7 +1158,7 @@
       if (photos.length === 0) return '-';
 
       const shown = photos.slice(0, 3)
-        .map((src, idx) => `<img class="thumb" src="${src}" alt="Foto ${idx + 1}">`)
+        .map((src, idx) => `<img class="thumb" src="${src}" alt="Foto ${idx + 1}" loading="lazy" decoding="async">`)
         .join('');
       const extra = photos.length > 3 ? `<span class="thumb-count">+${photos.length - 3}</span>` : '';
       return `<div class="thumbs">${shown}${extra}</div>`;
@@ -1095,6 +1182,8 @@
 
     function renderCurrentPage() {
       rows.innerHTML = '';
+      renderJobToken += 1;
+      const currentRenderToken = renderJobToken;
       const total = renderedItems.length;
       if (total === 0) {
         table.hidden = true;
@@ -1109,13 +1198,43 @@
       const startIndex = (currentPage - 1) * PAGE_SIZE;
       const pageItems = renderedItems.slice(startIndex, startIndex + PAGE_SIZE);
 
-      pageItems.forEach(buildTableRow);
-
       table.hidden = false;
       pageInfo.textContent = `Pagina ${currentPage} de ${totalPages} (${total} registros)`;
       btnPrevPage.disabled = currentPage <= 1;
       btnNextPage.disabled = currentPage >= totalPages;
-      updateElapsedTimers();
+
+      let cursor = 0;
+      const paintNextBatch = () => {
+        if (currentRenderToken !== renderJobToken) return;
+
+        const fragment = document.createDocumentFragment();
+        const limit = Math.min(cursor + RENDER_BATCH_SIZE, pageItems.length);
+        for (let i = cursor; i < limit; i += 1) {
+          const item = pageItems[i];
+          const ts = getTimestampFromItem(item);
+          const tr = document.createElement('tr');
+          const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
+          tr.innerHTML = `
+            <td>${item.dataHora || '-'} ${offChip}</td>
+            <td>${item.endereco || '-'}</td>
+            <td>${item.nomeNotificante || '-'}</td>
+            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
+            <td>${buildThumbs(item)}</td>
+            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
+            <td>${item.descricao || '-'}</td>
+          `;
+          fragment.appendChild(tr);
+        }
+        rows.appendChild(fragment);
+        updateElapsedTimers();
+        cursor = limit;
+
+        if (cursor < pageItems.length) {
+          window.requestAnimationFrame(paintNextBatch);
+        }
+      };
+
+      window.requestAnimationFrame(paintNextBatch);
     }
 
     function setRenderedItems(items) {
@@ -1273,10 +1392,30 @@
         const lat = Number(latInput.value);
         const lon = Number(lonInput.value);
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          ensureLeafletMapReady();
           setPointOnMap(lat, lon, false);
         }
       });
     });
+
+    function renderQuickLocalData() {
+      const cached = getCachedAccidents();
+      const pending = getOfflineQueue();
+      const offlineItems = pending.map((item) => ({
+        ...item,
+        dataHora: item.dataHora || 'Pendente offline',
+        id: item.localId,
+        _offline: true
+      }));
+      const snapshot = [...offlineItems, ...cached];
+
+      if (!Array.isArray(snapshot) || snapshot.length === 0) return;
+
+      empty.textContent = navigator.onLine
+        ? 'Mostrando dados locais enquanto atualiza...'
+        : 'Mostrando cache local (offline).';
+      setRenderedItems(snapshot.slice().reverse());
+    }
 
     function showInstallHelp() {
       alert(
@@ -1334,13 +1473,6 @@
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => reg.update())
           .catch(() => {});
-      });
-
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
       });
     }
 
@@ -1460,10 +1592,27 @@
     }
 
     updateOfflineInfo();
-    initLeafletMap();
     setPointOnMap(-8.050000, -34.900000, true);
     startStopwatch();
-    loadAccidents();
+    renderQuickLocalData();
+
+    const deferMapInit = () => {
+      ensureLeafletMapReady().then((ok) => {
+        if (ok) {
+          const lat = Number(latInput.value) || -8.05;
+          const lon = Number(lonInput.value) || -34.9;
+          setPointOnMap(lat, lon, false);
+        }
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(deferMapInit, { timeout: 2000 });
+    } else {
+      setTimeout(deferMapInit, 250);
+    }
+
+    setTimeout(loadAccidents, 60);
   </script>
 </body>
 </html>

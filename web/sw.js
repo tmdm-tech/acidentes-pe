@@ -1,4 +1,4 @@
-const CACHE_NAME = 'observa-pe-v3';
+const CACHE_NAME = 'observa-pe-v4';
 const API_CACHE = 'observa-pe-api-v1';
 const ASSETS = [
   '/',
@@ -40,16 +40,25 @@ self.addEventListener('fetch', (event) => {
   const reqUrl = new URL(event.request.url);
   const isNavigation = event.request.mode === 'navigate';
 
-  // Evita HTML desatualizado em aba normal: tenta rede primeiro.
+  // Navegacao prioriza cache para abrir rapido e atualiza em background.
   if (isNavigation) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
-          return response;
-        })
-        .catch(() => caches.match('/') || caches.match(event.request))
+      caches.match('/').then((cached) => {
+        const networkFetch = fetch(event.request)
+          .then((response) => {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+            return response;
+          })
+          .catch(() => cached || caches.match(event.request));
+
+        if (cached) {
+          event.waitUntil(networkFetch);
+          return cached;
+        }
+
+        return networkFetch;
+      })
     );
     return;
   }

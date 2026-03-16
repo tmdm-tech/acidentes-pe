@@ -526,10 +526,17 @@ def save_accidents(accidents):
     with open(ACCIDENTS_FILE, 'w', encoding='utf-8') as f:
         json.dump(accidents, f, ensure_ascii=False, indent=2)
 
+
+def no_cache_response(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 @app.route('/')
 def index():
     if os.path.exists(os.path.join(WEB_DIR, 'index_simple.html')):
-        return send_from_directory(WEB_DIR, 'index_simple.html')
+        return no_cache_response(send_from_directory(WEB_DIR, 'index_simple.html', max_age=0))
     return jsonify({
         'status': 'ok',
         'service': 'acidentes-pe',
@@ -548,7 +555,11 @@ def version():
 @app.route('/<path:filename>')
 def serve_static(filename):
     if os.path.exists(os.path.join(WEB_DIR, filename)):
-        return send_from_directory(WEB_DIR, filename)
+        lower_name = filename.lower()
+        if lower_name.endswith(('.html', '.htm')):
+            return no_cache_response(send_from_directory(WEB_DIR, filename, max_age=0))
+        # Assets estaticos podem ser cacheados para melhorar tempo de abertura.
+        return send_from_directory(WEB_DIR, filename, max_age=86400)
     return jsonify({'error': 'Arquivo nao encontrado'}), 404
 
 @app.route('/api/accidents', methods=['GET'])
