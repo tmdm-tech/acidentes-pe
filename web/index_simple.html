@@ -194,6 +194,46 @@
       margin-top: 4px;
     }
 
+    .photo-tabs {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .photo-tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #e2e8f0;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      font-weight: 700;
+    }
+
+    .photo-tab[aria-selected="true"] {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #1d4ed8;
+    }
+
+    .photo-panel {
+      margin-top: 8px;
+    }
+
+    .photo-panel[hidden] {
+      display: none;
+    }
+
+    .photo-input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+
     .install-banner {
       position: sticky;
       top: 0;
@@ -570,8 +610,16 @@
           </div>
           <div class="field full">
             <label for="fotos">Fotos do sinistro</label>
-            <input id="fotos" type="file" accept="image/*" multiple>
-            <input id="fotosCamera" type="file" accept="image/*" capture="environment">
+            <div class="photo-tabs" role="tablist" aria-label="Selecao de fotos">
+              <button type="button" id="tab-gallery" class="photo-tab" role="tab" aria-controls="panel-gallery" aria-selected="true">🖼 Selecionar fotos da galeria</button>
+              <button type="button" id="tab-camera" class="photo-tab" role="tab" aria-controls="panel-camera" aria-selected="false">📷 Tirar fotos da camera</button>
+            </div>
+            <div id="panel-gallery" class="photo-panel" role="tabpanel" aria-labelledby="tab-gallery">
+              <input id="fotos" class="photo-input" type="file" accept="image/*" multiple>
+            </div>
+            <div id="panel-camera" class="photo-panel" role="tabpanel" aria-labelledby="tab-camera" hidden>
+              <input id="fotosCamera" class="photo-input" type="file" accept="image/*" capture="environment">
+            </div>
             <div class="photo-help">Escolha fotos da galeria ou tire uma foto com a camera. Limite de 5 imagens; as fotos sao compactadas antes do envio.</div>
             <div id="preview" class="preview-grid"></div>
           </div>
@@ -662,6 +710,10 @@
     const empty = document.getElementById('empty');
     const photosInput = document.getElementById('fotos');
     const photosCameraInput = document.getElementById('fotosCamera');
+    const tabGallery = document.getElementById('tab-gallery');
+    const tabCamera = document.getElementById('tab-camera');
+    const panelGallery = document.getElementById('panel-gallery');
+    const panelCamera = document.getElementById('panel-camera');
     const preview = document.getElementById('preview');
     const btnInstall = document.getElementById('btn-install');
     const btnInstallHelp = document.getElementById('btn-install-help');
@@ -700,6 +752,14 @@
 
     function adminHeaders() {
       return adminAccessKey ? { 'X-Admin-Key': adminAccessKey } : {};
+    }
+
+    function setPhotoTab(tab) {
+      const galleryActive = tab === 'gallery';
+      tabGallery.setAttribute('aria-selected', galleryActive ? 'true' : 'false');
+      tabCamera.setAttribute('aria-selected', galleryActive ? 'false' : 'true');
+      panelGallery.hidden = !galleryActive;
+      panelCamera.hidden = galleryActive;
     }
 
     function setAdminMode(enabled) {
@@ -1522,6 +1582,9 @@
       photosCameraInput.value = '';
     });
 
+    tabGallery.addEventListener('click', () => setPhotoTab('gallery'));
+    tabCamera.addEventListener('click', () => setPhotoTab('camera'));
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       btnSubmit.disabled = true;
@@ -1592,6 +1655,7 @@
     }
 
     updateOfflineInfo();
+    setPhotoTab('gallery');
     setPointOnMap(-8.050000, -34.900000, true);
     startStopwatch();
     renderQuickLocalData();
