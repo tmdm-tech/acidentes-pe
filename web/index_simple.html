@@ -29,6 +29,10 @@
 
     * { box-sizing: border-box; }
 
+    [hidden] {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
@@ -693,9 +697,9 @@
         <button type="button" class="secondary" id="btn-admin-backup" hidden>Backup privado (GitHub)</button>
       </div>
       <div class="export-bar" id="export-bar" hidden>
-        <button type="button" class="secondary" id="btn-download-daily">Baixar planilha diaria</button>
-        <button type="button" class="secondary" id="btn-download-weekly">Baixar planilha semanal</button>
-        <button type="button" class="secondary" id="btn-download-monthly">Baixar planilha mensal</button>
+        <button type="button" class="secondary" id="btn-download-daily" hidden>Baixar planilha diaria</button>
+        <button type="button" class="secondary" id="btn-download-weekly" hidden>Baixar planilha semanal</button>
+        <button type="button" class="secondary" id="btn-download-monthly" hidden>Baixar planilha mensal</button>
         <span class="badge">Visualizacao agrupada de 10 em 10</span>
       </div>
       <div id="offline-info" class="map-caption"></div>
@@ -812,6 +816,9 @@
 
     function setAdminMode(enabled) {
       exportBar.hidden = !enabled;
+      btnDownloadDaily.hidden = !enabled;
+      btnDownloadWeekly.hidden = !enabled;
+      btnDownloadMonthly.hidden = !enabled;
       btnAdminLogout.hidden = !enabled;
       btnAdminBackup.hidden = !enabled;
       btnAdminLogin.hidden = enabled;
