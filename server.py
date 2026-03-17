@@ -259,12 +259,15 @@ def write_daily_csv_for_date(target_date, accidents):
         'id',
         'periodo',
         'data_hora_registro',
+        'municipio_notificacao',
         'nome_notificante',
-        'cpf',
         'endereco',
+        'veiculo_usuario',
+        'sinistro_vitimas',
+        'equipamentos_seguranca',
         'latitude',
         'longitude',
-        'descricao',
+        'outras_informacoes',
         'quantidade_fotos',
         'tempo_registro_segundos'
     ]
@@ -278,12 +281,15 @@ def write_daily_csv_for_date(target_date, accidents):
                 'id': item.get('id', ''),
                 'periodo': label,
                 'data_hora_registro': item.get('dataHora', ''),
+                'municipio_notificacao': item.get('municipioNotificacao', ''),
                 'nome_notificante': item.get('nomeNotificante', ''),
-                'cpf': item.get('cpf', ''),
                 'endereco': item.get('endereco', ''),
+                'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'sinistro_vitimas': item.get('sinistroVitimas', ''),
+                'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
-                'descricao': item.get('descricao', ''),
+                'outras_informacoes': item.get('descricao', ''),
                 'quantidade_fotos': len(photos),
                 'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
             })
@@ -317,7 +323,10 @@ def write_daily_map_for_date(target_date, accidents):
             'endereco': item.get('endereco', ''),
             'dataHora': item.get('dataHora', ''),
             'descricao': item.get('descricao', ''),
-            'nomeNotificante': item.get('nomeNotificante', '')
+            'nomeNotificante': item.get('nomeNotificante', ''),
+            'municipioNotificacao': item.get('municipioNotificacao', ''),
+            'veiculoUsuario': item.get('veiculoUsuario', ''),
+            'sinistroVitimas': item.get('sinistroVitimas', '')
         })
 
     markers_json = json.dumps(markers, ensure_ascii=False)
@@ -355,8 +364,11 @@ def write_daily_map_for_date(target_date, accidents):
       marker.bindPopup(
         `<b>${{p.endereco || '-'}}</b><br/>` +
         `Data/Hora: ${{p.dataHora || '-'}}<br/>` +
+        `Municipio: ${{p.municipioNotificacao || '-'}}<br/>` +
         `Notificante: ${{p.nomeNotificante || '-'}}<br/>` +
-        `Descricao: ${{p.descricao || '-'}}`
+        `Veiculo/Usuario: ${{p.veiculoUsuario || '-'}}<br/>` +
+        `Vitimas: ${{p.sinistroVitimas || '-'}}<br/>` +
+        `Outras informacoes: ${{p.descricao || '-'}}`
       );
       bounds.push([p.lat, p.lon]);
     }});
@@ -464,12 +476,15 @@ def write_export_csv(period, accidents):
         'id',
         'periodo',
         'data_hora_registro',
+        'municipio_notificacao',
         'nome_notificante',
-        'cpf',
         'endereco',
+        'veiculo_usuario',
+        'sinistro_vitimas',
+        'equipamentos_seguranca',
         'latitude',
         'longitude',
-        'descricao',
+        'outras_informacoes',
         'quantidade_fotos',
         'tempo_registro_segundos'
     ]
@@ -484,12 +499,15 @@ def write_export_csv(period, accidents):
                 'id': item.get('id', ''),
                 'periodo': period_label(dt, period),
                 'data_hora_registro': item.get('dataHora', ''),
+                'municipio_notificacao': item.get('municipioNotificacao', ''),
                 'nome_notificante': item.get('nomeNotificante', ''),
-                'cpf': item.get('cpf', ''),
                 'endereco': item.get('endereco', ''),
+                'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'sinistro_vitimas': item.get('sinistroVitimas', ''),
+                'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
-                'descricao': item.get('descricao', ''),
+                'outras_informacoes': item.get('descricao', ''),
                 'quantidade_fotos': len(photos),
                 'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
             })
@@ -679,7 +697,17 @@ def add_accident():
         data = request.get_json() or {}
 
         # Validar dados obrigatórios
-        required_fields = ['endereco', 'latitude', 'longitude', 'nomeNotificante', 'cpf', 'descricao']
+        required_fields = [
+            'municipioNotificacao',
+            'nomeNotificante',
+            'endereco',
+            'veiculoUsuario',
+            'sinistroVitimas',
+            'equipamentosSeguranca',
+            'latitude',
+            'longitude',
+            'descricao'
+        ]
         for field in required_fields:
             if field not in data or not str(data[field]).strip():
                 return jsonify({'error': f'Campo obrigatório: {field}'}), 400
@@ -710,11 +738,14 @@ def add_accident():
         # Criar acidente
         accident = {
             'id': str(int(datetime.now().timestamp() * 1000)),
+            'municipioNotificacao': data['municipioNotificacao'].strip(),
+            'nomeNotificante': data['nomeNotificante'].strip(),
             'endereco': data['endereco'].strip(),
+            'veiculoUsuario': data['veiculoUsuario'].strip(),
+            'sinistroVitimas': data['sinistroVitimas'].strip(),
+            'equipamentosSeguranca': data['equipamentosSeguranca'].strip(),
             'latitude': data['latitude'].strip(),
             'longitude': data['longitude'].strip(),
-            'nomeNotificante': data['nomeNotificante'].strip(),
-            'cpf': data['cpf'].strip(),
             'descricao': data['descricao'].strip(),
             'fotos': photos,
             'tempoRegistroSegundos': elapsed_seconds,

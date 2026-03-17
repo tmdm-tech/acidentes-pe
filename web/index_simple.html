@@ -135,7 +135,7 @@
       color: var(--muted);
     }
 
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       border: 1px solid #cbd5e1;
       border-radius: 10px;
@@ -573,16 +573,56 @@
       <form id="accident-form">
         <div class="grid">
           <div class="field">
-            <label for="nomeNotificante">Instituição</label>
-            <input id="nomeNotificante" required>
+            <label for="municipioNotificacao">Municipio de notificacao</label>
+            <input id="municipioNotificacao" required>
           </div>
           <div class="field">
-            <label for="cpf">Nome do notificante</label>
-            <input id="cpf" required>
+            <label for="nomeNotificante">Nome do notificante</label>
+            <input id="nomeNotificante" required>
           </div>
           <div class="field full">
-            <label for="endereco">Endereco do Sinistro</label>
+            <label for="endereco">Endereco do sinistro</label>
             <input id="endereco" required>
+          </div>
+          <div class="field">
+            <label for="veiculoUsuario">Veiculo/ Usuario</label>
+            <select id="veiculoUsuario" required>
+              <option value="">Selecione</option>
+              <option>A Pe</option>
+              <option>Automovel</option>
+              <option>Automovel por aplicativo</option>
+              <option>Motocicleta</option>
+              <option>Motocicleta por aplicativo</option>
+              <option>Bicicleta</option>
+              <option>Bicicleta por aplicativo</option>
+              <option>Onibus/Similar</option>
+              <option>Veiculo pesado</option>
+              <option>Ambulancia/ SAMU</option>
+              <option>Resgate</option>
+              <option>Veiculo de tracao animal</option>
+              <option>Ignorado</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sinistroVitimas">Sinistro com vitimas</label>
+            <select id="sinistroVitimas" required>
+              <option value="">Selecione</option>
+              <option>1 vitima</option>
+              <option>2 vitimas</option>
+              <option>3 vitimas ou mais</option>
+              <option>Vitimas fatais</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="equipamentosSeguranca">Equipamentos de seguranca em uso</label>
+            <select id="equipamentosSeguranca" required>
+              <option value="">Selecione</option>
+              <option>Cinto de seguranca</option>
+              <option>Capacete</option>
+              <option>Nenhum equipamento em uso</option>
+              <option>Nao se aplica</option>
+            </select>
           </div>
           <div class="field">
             <label for="latitude">Latitude</label>
@@ -605,7 +645,7 @@
             </div>
           </div>
           <div class="field full">
-            <label for="descricao">Breve descricao</label>
+            <label for="descricao">Outras informacoes</label>
             <textarea id="descricao" required></textarea>
           </div>
           <div class="field full">
@@ -665,12 +705,16 @@
           <thead>
             <tr>
               <th>Data/Hora</th>
+              <th>Municipio</th>
+              <th>Notificante</th>
               <th>Endereco do Sinistro</th>
-              <th>Instituicao</th>
+              <th>Veiculo/Usuario</th>
+              <th>Vitimas</th>
+              <th>Equipamentos</th>
               <th>Coordenadas</th>
               <th>Fotos</th>
               <th>Tempo de registro</th>
-              <th>Breve descricao</th>
+              <th>Outras informacoes</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -708,6 +752,10 @@
     const table = document.getElementById('table');
     const rows = document.getElementById('rows');
     const empty = document.getElementById('empty');
+    const municipioNotificacaoInput = document.getElementById('municipioNotificacao');
+    const veiculoUsuarioInput = document.getElementById('veiculoUsuario');
+    const sinistroVitimasInput = document.getElementById('sinistroVitimas');
+    const equipamentosSegurancaInput = document.getElementById('equipamentosSeguranca');
     const photosInput = document.getElementById('fotos');
     const photosCameraInput = document.getElementById('fotosCamera');
     const tabGallery = document.getElementById('tab-gallery');
@@ -1230,8 +1278,12 @@
       const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
       tr.innerHTML = `
         <td>${item.dataHora || '-'} ${offChip}</td>
-        <td>${item.endereco || '-'}</td>
+        <td>${item.municipioNotificacao || '-'}</td>
         <td>${item.nomeNotificante || '-'}</td>
+        <td>${item.endereco || '-'}</td>
+        <td>${item.veiculoUsuario || '-'}</td>
+        <td>${item.sinistroVitimas || '-'}</td>
+        <td>${item.equipamentosSeguranca || '-'}</td>
         <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
         <td>${buildThumbs(item)}</td>
         <td><span class="timer-chip" data-ts="${ts}">--</span></td>
@@ -1276,8 +1328,12 @@
           const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
           tr.innerHTML = `
             <td>${item.dataHora || '-'} ${offChip}</td>
-            <td>${item.endereco || '-'}</td>
+            <td>${item.municipioNotificacao || '-'}</td>
             <td>${item.nomeNotificante || '-'}</td>
+            <td>${item.endereco || '-'}</td>
+            <td>${item.veiculoUsuario || '-'}</td>
+            <td>${item.sinistroVitimas || '-'}</td>
+            <td>${item.equipamentosSeguranca || '-'}</td>
             <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
             <td>${buildThumbs(item)}</td>
             <td><span class="timer-chip" data-ts="${ts}">--</span></td>
@@ -1593,11 +1649,14 @@
       const payload = {
         localId: String(Date.now()),
         dataHora: new Date().toLocaleString('pt-BR'),
+        municipioNotificacao: municipioNotificacaoInput.value.trim(),
+        nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
         endereco: document.getElementById('endereco').value.trim(),
+        veiculoUsuario: veiculoUsuarioInput.value.trim(),
+        sinistroVitimas: sinistroVitimasInput.value.trim(),
+        equipamentosSeguranca: equipamentosSegurancaInput.value.trim(),
         latitude: latInput.value.trim(),
         longitude: lonInput.value.trim(),
-        nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
-        cpf: document.getElementById('cpf').value.trim(),
         descricao: document.getElementById('descricao').value.trim(),
         tempoRegistroSegundos: getCurrentStopwatchSeconds(),
         fotos: encodedPhotos
