@@ -51,7 +51,7 @@ SCHEDULER_STARTED = False
 ADMIN_ACCESS_KEY = (
     os.environ.get('ADMIN_ACCESS_KEY', '')
     or os.environ.get('ADMIN_KEY', '')
-    or os.environ.get('AMIN_KEY', '')
+    or os.environ.get('ADMIM_ACESS_KEY', '')
 ).strip()
 GITHUB_BACKUP_REPO = os.environ.get('GITHUB_BACKUP_REPO', '')  # owner/repo
 GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
