@@ -1,4 +1,4 @@
-const CACHE_NAME = 'observa-pe-v4';
+const CACHE_NAME = 'observa-pe-v5';
 const API_CACHE = 'observa-pe-api-v1';
 const ASSETS = [
   '/',

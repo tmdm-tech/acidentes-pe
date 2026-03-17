@@ -783,7 +783,7 @@ if __name__ == '__main__':
     local_ip = socket.gethostbyname(hostname)
 
     print("\n" + "="*60)
-    print("🚀 ObservaTrânsito - Servidor Web")
+    print("🚀 RedeVitima - Servidor Web")
     print("="*60)
     print(f"📱 Acesso Local: http://localhost:8000")
     print(f"🌐 Acesso na Rede: http://{local_ip}:8000")
