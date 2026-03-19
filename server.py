@@ -8,6 +8,7 @@ import socket
 import threading
 import time
 import base64
+import shutil
 from urllib import request as urllib_request
 from urllib import error as urllib_error
 
@@ -43,8 +44,24 @@ WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000
-DATA_DIR = os.environ.get('DATA_DIR', '.')
+
+
+def resolve_data_dir():
+    configured = os.environ.get('DATA_DIR', '').strip()
+    if configured:
+        return configured
+
+    # Em provedores como Render, /var/data e persistente entre deploys.
+    persistent_dir = '/var/data'
+    if os.path.isdir(persistent_dir) and os.access(persistent_dir, os.W_OK):
+        return persistent_dir
+
+    return '.'
+
+
+DATA_DIR = resolve_data_dir()
 ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
+ACCIDENTS_BAK_FILE = os.path.join(DATA_DIR, 'accidents.bak.json')
 EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
 EXPORT_STATE_FILE = os.path.join(EXPORTS_DIR, 'daily_export_state.json')
 SCHEDULER_STARTED = False
@@ -535,14 +552,33 @@ def generate_all_exports(accidents):
     }
 
 def load_accidents():
+    ensure_exports_dir()
     if os.path.exists(ACCIDENTS_FILE):
-        with open(ACCIDENTS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(ACCIDENTS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except json.JSONDecodeError:
+            # Se o arquivo principal corromper, tenta recuperar do backup.
+            if os.path.exists(ACCIDENTS_BAK_FILE):
+                with open(ACCIDENTS_BAK_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data if isinstance(data, list) else []
     return []
 
 def save_accidents(accidents):
-    with open(ACCIDENTS_FILE, 'w', encoding='utf-8') as f:
+    ensure_exports_dir()
+
+    if os.path.exists(ACCIDENTS_FILE):
+        shutil.copy2(ACCIDENTS_FILE, ACCIDENTS_BAK_FILE)
+
+    tmp_file = f'{ACCIDENTS_FILE}.tmp'
+    with open(tmp_file, 'w', encoding='utf-8') as f:
         json.dump(accidents, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+
+    os.replace(tmp_file, ACCIDENTS_FILE)
 
 
 def no_cache_response(response):
