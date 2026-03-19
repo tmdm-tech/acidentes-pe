@@ -9,8 +9,18 @@ import threading
 import time
 import base64
 import shutil
+import hmac
+import importlib
 from urllib import request as urllib_request
 from urllib import error as urllib_error
+
+try:
+    _fernet_module = importlib.import_module('cryptography.fernet')
+    Fernet = getattr(_fernet_module, 'Fernet')
+    InvalidToken = getattr(_fernet_module, 'InvalidToken')
+except Exception:  # pragma: no cover - fallback para ambiente sem dependencia
+    Fernet = None
+    InvalidToken = Exception
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
@@ -75,11 +85,68 @@ GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
 GITHUB_BACKUP_BRANCH = os.environ.get('GITHUB_BACKUP_BRANCH', 'main')
 GITHUB_BACKUP_PATH = os.environ.get('GITHUB_BACKUP_PATH', 'observa_backup')
 BACKUP_STATE_FILE = os.path.join(DATA_DIR, 'backup_state.json')
+DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
+DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
+
+if DATA_ENCRYPTION_ENABLED and Fernet is None:
+    raise RuntimeError('DATA_ENCRYPTION_KEY configurada, mas dependência cryptography não está instalada')
+
+if DATA_ENCRYPTION_ENABLED:
+    try:
+        DATA_FERNET = Fernet(DATA_ENCRYPTION_KEY.encode('utf-8'))
+    except Exception as exc:
+        raise RuntimeError('DATA_ENCRYPTION_KEY inválida. Gere com Fernet.generate_key().') from exc
+else:
+    DATA_FERNET = None
 
 
 def ensure_exports_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+
+def secure_file_permissions(file_path):
+    # Em ambientes Linux, restringe leitura/escrita ao dono do processo.
+    try:
+        os.chmod(file_path, 0o600)
+    except Exception:
+        pass
+
+
+def _serialize_accidents_payload(accidents):
+    if not DATA_FERNET:
+        return accidents
+
+    raw = json.dumps(accidents, ensure_ascii=False).encode('utf-8')
+    encrypted = DATA_FERNET.encrypt(raw).decode('utf-8')
+    return {
+        '_encrypted': True,
+        'algorithm': 'fernet',
+        'version': 1,
+        'payload': encrypted,
+    }
+
+
+def _deserialize_accidents_payload(payload):
+    if isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, dict) and payload.get('_encrypted') is True:
+        if not DATA_FERNET:
+            raise RuntimeError('Arquivo de acidentes está criptografado e DATA_ENCRYPTION_KEY não foi configurada')
+
+        encrypted = str(payload.get('payload', '')).encode('utf-8')
+        if not encrypted:
+            return []
+        try:
+            decrypted = DATA_FERNET.decrypt(encrypted)
+        except InvalidToken as exc:
+            raise RuntimeError('Falha ao descriptografar acidentes: chave incorreta ou arquivo inválido') from exc
+
+        loaded = json.loads(decrypted.decode('utf-8'))
+        return loaded if isinstance(loaded, list) else []
+
+    return []
 
 
 def read_backup_state():
@@ -103,13 +170,14 @@ def write_backup_state(state):
     ensure_exports_dir()
     with open(BACKUP_STATE_FILE, 'w', encoding='utf-8') as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+    secure_file_permissions(BACKUP_STATE_FILE)
 
 
 def is_admin_request():
     if not ADMIN_ACCESS_KEY:
         return False
     candidate = str(request.headers.get('X-Admin-Key', '')).strip()
-    return candidate == ADMIN_ACCESS_KEY
+    return hmac.compare_digest(candidate, ADMIN_ACCESS_KEY)
 
 
 def require_admin_response():
@@ -224,6 +292,7 @@ def write_export_state(state):
     ensure_exports_dir()
     with open(EXPORT_STATE_FILE, 'w', encoding='utf-8') as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+    secure_file_permissions(EXPORT_STATE_FILE)
 
 
 def parse_accident_datetime(item):
@@ -557,13 +626,16 @@ def load_accidents():
         try:
             with open(ACCIDENTS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data if isinstance(data, list) else []
+                return _deserialize_accidents_payload(data)
         except json.JSONDecodeError:
             # Se o arquivo principal corromper, tenta recuperar do backup.
             if os.path.exists(ACCIDENTS_BAK_FILE):
                 with open(ACCIDENTS_BAK_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    return data if isinstance(data, list) else []
+                    return _deserialize_accidents_payload(data)
+        except RuntimeError:
+            # Propaga erro de criptografia para facilitar diagnostico de ambiente.
+            raise
     return []
 
 def save_accidents(accidents):
@@ -571,14 +643,17 @@ def save_accidents(accidents):
 
     if os.path.exists(ACCIDENTS_FILE):
         shutil.copy2(ACCIDENTS_FILE, ACCIDENTS_BAK_FILE)
+        secure_file_permissions(ACCIDENTS_BAK_FILE)
 
     tmp_file = f'{ACCIDENTS_FILE}.tmp'
     with open(tmp_file, 'w', encoding='utf-8') as f:
-        json.dump(accidents, f, ensure_ascii=False, indent=2)
+        payload = _serialize_accidents_payload(accidents)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
         f.flush()
         os.fsync(f.fileno())
 
     os.replace(tmp_file, ACCIDENTS_FILE)
+    secure_file_permissions(ACCIDENTS_FILE)
 
 
 def no_cache_response(response):

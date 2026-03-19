@@ -155,6 +155,40 @@ Para manter uma copia privada automatica dos registros no GitHub (repo privado),
 
 Depois, no app em modo administrador, use o botao **Backup privado (GitHub)**.
 
+## 🛡️ Ambiente seguro recomendado (producao)
+
+Para elevar a seguranca do armazenamento dos dados coletados:
+
+1. **Ative criptografia em disco dos registros (server-side):**
+
+- Gere a chave localmente:
+	- `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+- Configure no Render:
+	- `DATA_ENCRYPTION_KEY=sua_chave_gerada_pelo_fernet`
+
+2. **Mantenha chave administrativa forte:**
+
+- `ADMIN_ACCESS_KEY=uma_chave_grande_e_unica`
+
+3. **Use backup privado no GitHub (repo privado):**
+
+- `GITHUB_BACKUP_REPO=seu-user/seu-repo-privado`
+- `GITHUB_BACKUP_TOKEN=token_com_acesso_ao_repo_privado`
+- `GITHUB_BACKUP_BRANCH=main`
+- `GITHUB_BACKUP_PATH=observa_backup`
+
+4. **Persistencia de disco no Render:**
+
+- Garanta um Disk montado em `/var/data`.
+- Opcionalmente, force por variavel:
+	- `DATA_DIR=/var/data`
+
+Com isso, os registros ficam:
+
+- permanentes no disco persistente,
+- protegidos por criptografia no arquivo principal,
+- com copia externa privada no GitHub.
+
 ## 🐛 Troubleshooting
 
 **Servidor não inicia:**
