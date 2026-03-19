@@ -1,12 +1,12 @@
 {
-  "name": "RedeVitima",
-  "short_name": "RedeVitima",
+  "name": "RedeVítima",
+  "short_name": "RedeVítima",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#1d4ed8",
-  "description": "Registro de sinistros de transito em Pernambuco",
+  "description": "Registro de sinistros de trânsito em Pernambuco",
   "categories": ["utilities", "productivity"],
   "icons": [
     {
@@ -33,7 +33,7 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "label": "RedeVitima"
+      "label": "RedeVítima"
     }
   ]
 }
