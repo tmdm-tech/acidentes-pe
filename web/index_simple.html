@@ -530,9 +530,11 @@
       border: 1px solid var(--line);
       box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
       display: flex;
-      gap: 12px;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 6px;
+      justify-content: center;
       align-items: center;
+      text-align: center;
       font-size: 0.86rem;
       color: #334155;
     }
@@ -541,9 +543,7 @@
       font-weight: 700;
     }
 
-    .app-footer .address {
-      text-align: right;
-    }
+    .app-footer .address { text-align: center; }
 
     @keyframes floatGlow {
       0% { transform: translate3d(0, 0, 0) scale(1); }
@@ -569,14 +569,7 @@
         display: none;
       }
 
-      .app-footer {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .app-footer .address {
-        text-align: left;
-      }
+      .app-footer { padding: 12px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
