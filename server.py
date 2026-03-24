@@ -349,6 +349,8 @@ def write_daily_csv_for_date(target_date, accidents):
         'nome_notificante',
         'endereco',
         'veiculo_usuario',
+        'sinistro_com_vitimas',
+        'quantidade_vitimas',
         'sinistro_vitimas',
         'equipamentos_seguranca',
         'latitude',
@@ -371,6 +373,8 @@ def write_daily_csv_for_date(target_date, accidents):
                 'nome_notificante': item.get('nomeNotificante', ''),
                 'endereco': item.get('endereco', ''),
                 'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'sinistro_com_vitimas': item.get('sinistroComVitimas', ''),
+                'quantidade_vitimas': item.get('quantidadeVitimas', ''),
                 'sinistro_vitimas': item.get('sinistroVitimas', ''),
                 'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
@@ -412,6 +416,8 @@ def write_daily_map_for_date(target_date, accidents):
             'nomeNotificante': item.get('nomeNotificante', ''),
             'municipioNotificacao': item.get('municipioNotificacao', ''),
             'veiculoUsuario': item.get('veiculoUsuario', ''),
+            'sinistroComVitimas': item.get('sinistroComVitimas', ''),
+            'quantidadeVitimas': item.get('quantidadeVitimas', ''),
             'sinistroVitimas': item.get('sinistroVitimas', '')
         })
 
@@ -453,6 +459,8 @@ def write_daily_map_for_date(target_date, accidents):
         `Municipio: ${{p.municipioNotificacao || '-'}}<br/>` +
         `Notificante: ${{p.nomeNotificante || '-'}}<br/>` +
         `Veiculo/Usuario: ${{p.veiculoUsuario || '-'}}<br/>` +
+                `Sinistro com vitimas: ${{p.sinistroComVitimas || '-'}}<br/>` +
+                `Quantidade de vitimas: ${{p.quantidadeVitimas || '-'}}<br/>` +
         `Vitimas: ${{p.sinistroVitimas || '-'}}<br/>` +
         `Outras informacoes: ${{p.descricao || '-'}}`
       );
@@ -566,6 +574,8 @@ def write_export_csv(period, accidents):
         'nome_notificante',
         'endereco',
         'veiculo_usuario',
+        'sinistro_com_vitimas',
+        'quantidade_vitimas',
         'sinistro_vitimas',
         'equipamentos_seguranca',
         'latitude',
@@ -589,6 +599,8 @@ def write_export_csv(period, accidents):
                 'nome_notificante': item.get('nomeNotificante', ''),
                 'endereco': item.get('endereco', ''),
                 'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'sinistro_com_vitimas': item.get('sinistroComVitimas', ''),
+                'quantidade_vitimas': item.get('quantidadeVitimas', ''),
                 'sinistro_vitimas': item.get('sinistroVitimas', ''),
                 'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
@@ -813,7 +825,7 @@ def add_accident():
             'nomeNotificante',
             'endereco',
             'veiculoUsuario',
-            'sinistroVitimas',
+            'sinistroComVitimas',
             'equipamentosSeguranca',
             'latitude',
             'longitude',
@@ -822,6 +834,18 @@ def add_accident():
         for field in required_fields:
             if field not in data or not str(data[field]).strip():
                 return jsonify({'error': f'Campo obrigatório: {field}'}), 400
+
+        sinistro_com_vitimas = str(data.get('sinistroComVitimas', '')).strip()
+        if sinistro_com_vitimas not in {'Sim', 'Não'}:
+            return jsonify({'error': 'Campo sinistroComVitimas invalido. Use Sim ou Não.'}), 400
+
+        quantidade_vitimas = str(data.get('quantidadeVitimas', '')).strip()
+        if sinistro_com_vitimas == 'Sim' and quantidade_vitimas not in {'1', '2 ou mais', 'Vítima fatal'}:
+            return jsonify({'error': 'Quantidade de vitimas invalida.'}), 400
+        if sinistro_com_vitimas == 'Não':
+            quantidade_vitimas = ''
+
+        sinistro_vitimas = quantidade_vitimas if sinistro_com_vitimas == 'Sim' else 'Sem vítimas'
 
         raw_photos = data.get('fotos', [])
         if raw_photos is None:
@@ -853,7 +877,9 @@ def add_accident():
             'nomeNotificante': data['nomeNotificante'].strip(),
             'endereco': data['endereco'].strip(),
             'veiculoUsuario': data['veiculoUsuario'].strip(),
-            'sinistroVitimas': data['sinistroVitimas'].strip(),
+            'sinistroComVitimas': sinistro_com_vitimas,
+            'quantidadeVitimas': quantidade_vitimas,
+            'sinistroVitimas': sinistro_vitimas,
             'equipamentosSeguranca': data['equipamentosSeguranca'].strip(),
             'latitude': data['latitude'].strip(),
             'longitude': data['longitude'].strip(),
