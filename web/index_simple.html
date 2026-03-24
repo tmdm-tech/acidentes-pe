@@ -521,6 +521,30 @@
       font-weight: 700;
     }
 
+    .app-footer {
+      max-width: 1000px;
+      margin: 0 auto 20px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.86rem;
+      color: #334155;
+    }
+
+    .app-footer .brand {
+      font-weight: 700;
+    }
+
+    .app-footer .address {
+      text-align: right;
+    }
+
     @keyframes floatGlow {
       0% { transform: translate3d(0, 0, 0) scale(1); }
       50% { transform: translate3d(0, 16px, 0) scale(1.03); }
@@ -543,6 +567,15 @@
       th:nth-child(3), td:nth-child(3),
       th:nth-child(4), td:nth-child(4) {
         display: none;
+      }
+
+      .app-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .app-footer .address {
+        text-align: left;
       }
     }
 
@@ -740,6 +773,11 @@
       </div>
     </section>
   </main>
+
+  <footer class="app-footer">
+    <div class="brand">Desenvolvido e criado pela Vigilância de Violência e Acidentes da Secretaria de Saúde de Pernambuco</div>
+    <div class="address">Rua Vinte e Quatro de Agosto, 209, Santo Amaro, Recife-PE</div>
+  </footer>
 
   <script>
     const form = document.getElementById('accident-form');
