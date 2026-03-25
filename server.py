@@ -355,7 +355,6 @@ def write_daily_csv_for_date(target_date, accidents):
         'equipamentos_seguranca',
         'latitude',
         'longitude',
-        'outras_informacoes',
         'quantidade_fotos',
         'tempo_registro_segundos'
     ]
@@ -379,7 +378,6 @@ def write_daily_csv_for_date(target_date, accidents):
                 'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
-                'outras_informacoes': item.get('descricao', ''),
                 'quantidade_fotos': len(photos),
                 'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
             })
@@ -461,8 +459,7 @@ def write_daily_map_for_date(target_date, accidents):
         `Veiculo/Usuario: ${{p.veiculoUsuario || '-'}}<br/>` +
                 `Sinistro com vitimas: ${{p.sinistroComVitimas || '-'}}<br/>` +
                 `Quantidade de vitimas: ${{p.quantidadeVitimas || '-'}}<br/>` +
-        `Vitimas: ${{p.sinistroVitimas || '-'}}<br/>` +
-        `Outras informacoes: ${{p.descricao || '-'}}`
+                `Vitimas: ${{p.sinistroVitimas || '-'}}`
       );
       bounds.push([p.lat, p.lon]);
     }});
@@ -580,7 +577,6 @@ def write_export_csv(period, accidents):
         'equipamentos_seguranca',
         'latitude',
         'longitude',
-        'outras_informacoes',
         'quantidade_fotos',
         'tempo_registro_segundos'
     ]
@@ -605,7 +601,6 @@ def write_export_csv(period, accidents):
                 'equipamentos_seguranca': item.get('equipamentosSeguranca', ''),
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
-                'outras_informacoes': item.get('descricao', ''),
                 'quantidade_fotos': len(photos),
                 'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
             })
@@ -828,8 +823,7 @@ def add_accident():
             'sinistroComVitimas',
             'equipamentosSeguranca',
             'latitude',
-            'longitude',
-            'descricao'
+            'longitude'
         ]
         for field in required_fields:
             if field not in data or not str(data[field]).strip():
@@ -883,7 +877,7 @@ def add_accident():
             'equipamentosSeguranca': data['equipamentosSeguranca'].strip(),
             'latitude': data['latitude'].strip(),
             'longitude': data['longitude'].strip(),
-            'descricao': data['descricao'].strip(),
+            'descricao': str(data.get('descricao', '')).strip(),
             'fotos': photos,
             'tempoRegistroSegundos': elapsed_seconds,
             'dataHora': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),

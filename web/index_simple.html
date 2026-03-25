@@ -616,7 +616,7 @@
             <input id="municipioNotificacao" required>
           </div>
           <div class="field">
-            <label for="nomeNotificante">Nome do notificante</label>
+            <label for="nomeNotificante">Instituição notificante</label>
             <input id="nomeNotificante" required>
           </div>
           <div class="field full">
@@ -691,10 +691,6 @@
             </div>
           </div>
           <div class="field full">
-            <label for="descricao">Outras informações</label>
-            <textarea id="descricao" required></textarea>
-          </div>
-          <div class="field full">
             <label for="fotos">Fotos do sinistro</label>
             <div class="photo-tabs" role="tablist" aria-label="Selecao de fotos">
               <button type="button" id="tab-gallery" class="photo-tab" role="tab" aria-controls="panel-gallery" aria-selected="true">🖼 Selecionar fotos da galeria</button>
@@ -760,7 +756,6 @@
               <th>Coordenadas</th>
               <th>Fotos</th>
               <th>Tempo de registro</th>
-              <th>Outras informações</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -1374,7 +1369,6 @@
         <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
         <td>${buildThumbs(item)}</td>
         <td><span class="timer-chip" data-ts="${ts}">--</span></td>
-        <td>${item.descricao || '-'}</td>
       `;
       rows.appendChild(tr);
     }
@@ -1424,7 +1418,6 @@
             <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
             <td>${buildThumbs(item)}</td>
             <td><span class="timer-chip" data-ts="${ts}">--</span></td>
-            <td>${item.descricao || '-'}</td>
           `;
           fragment.appendChild(tr);
         }
@@ -1748,7 +1741,6 @@
         equipamentosSeguranca: equipamentosSegurancaInput.value.trim(),
         latitude: latInput.value.trim(),
         longitude: lonInput.value.trim(),
-        descricao: document.getElementById('descricao').value.trim(),
         tempoRegistroSegundos: getCurrentStopwatchSeconds(),
         fotos: encodedPhotos
       };
