@@ -551,6 +551,23 @@
       letter-spacing: 0.1px;
     }
 
+    .page-submit-bar {
+      max-width: 1000px;
+      margin: 0 auto 14px;
+      padding: 0 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .page-submit-bar button {
+      min-width: min(460px, 100%);
+      font-size: 1rem;
+      padding: 12px 16px;
+      background: #15803d;
+      border: 1px solid #166534;
+      box-shadow: 0 6px 14px rgba(2, 6, 23, 0.16);
+    }
+
     @keyframes floatGlow {
       0% { transform: translate3d(0, 0, 0) scale(1); }
       50% { transform: translate3d(0, 16px, 0) scale(1.03); }
@@ -711,7 +728,6 @@
           <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
           <button type="button" class="secondary" id="btn-location">&#128260; Rastrear em tempo real</button>
           <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
-          <button type="submit" id="btn-submit">Salvar sinistro</button>
         </div>
         <div class="install-box">
           <p><strong>📲 Instalar app no celular</strong></p>
@@ -770,6 +786,10 @@
       </div>
     </section>
   </main>
+
+  <div class="page-submit-bar">
+    <button type="submit" id="btn-submit" form="accident-form">Salvar registro</button>
+  </div>
 
   <footer class="app-footer">
     <div class="brand">Desenvolvido e criado pela Vigilância de Violência e Acidentes da Secretaria de Saúde de Pernambuco</div>
