@@ -425,7 +425,7 @@ def write_daily_map_for_date(target_date, accidents):
 <head>
   <meta charset=\"utf-8\" />
   <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
-    <title>Mapa Diário de Acidentes - {label}</title>
+  <title>Mapa Diário de Acidentes - {label}</title>
   <link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" crossorigin=\"\"/>
   <style>
     body {{ margin: 0; font-family: Arial, sans-serif; }}
