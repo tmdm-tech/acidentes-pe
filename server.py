@@ -325,6 +325,17 @@ def daily_date_label(dt_value):
     return dt_value.strftime('%Y-%m-%d')
 
 
+def format_duration_hms(seconds_value):
+    try:
+        total = max(0, int(seconds_value))
+    except (TypeError, ValueError):
+        total = 0
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    seconds = total % 60
+    return f'{hours:02d}h {minutes:02d}m {seconds:02d}s'
+
+
 def accidents_for_date(accidents, target_date):
     rows = []
     for item in accidents:
@@ -356,7 +367,8 @@ def write_daily_csv_for_date(target_date, accidents):
         'latitude',
         'longitude',
         'quantidade_fotos',
-        'tempo_registro_segundos'
+        'tempo_registro_segundos',
+        'tempo_registro_formatado'
     ]
 
     with open(file_path, 'w', encoding='utf-8-sig', newline='') as csv_file:
@@ -364,6 +376,7 @@ def write_daily_csv_for_date(target_date, accidents):
         writer.writeheader()
         for item in accidents:
             photos = item.get('fotos') if isinstance(item.get('fotos'), list) else []
+            tempo_segundos = item.get('tempoRegistroSegundos', 0)
             writer.writerow({
                 'id': item.get('id', ''),
                 'periodo': label,
@@ -379,7 +392,8 @@ def write_daily_csv_for_date(target_date, accidents):
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
                 'quantidade_fotos': len(photos),
-                'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
+                'tempo_registro_segundos': tempo_segundos,
+                'tempo_registro_formatado': format_duration_hms(tempo_segundos)
             })
 
     with open(file_path, 'r', encoding='utf-8-sig') as src:
@@ -578,7 +592,8 @@ def write_export_csv(period, accidents):
         'latitude',
         'longitude',
         'quantidade_fotos',
-        'tempo_registro_segundos'
+        'tempo_registro_segundos',
+        'tempo_registro_formatado'
     ]
 
     with open(archived_path, 'w', encoding='utf-8-sig', newline='') as csv_file:
@@ -587,6 +602,7 @@ def write_export_csv(period, accidents):
         for item in accidents:
             dt = parse_accident_datetime(item)
             photos = item.get('fotos') if isinstance(item.get('fotos'), list) else []
+            tempo_segundos = item.get('tempoRegistroSegundos', 0)
             writer.writerow({
                 'id': item.get('id', ''),
                 'periodo': period_label(dt, period),
@@ -602,7 +618,8 @@ def write_export_csv(period, accidents):
                 'latitude': item.get('latitude', ''),
                 'longitude': item.get('longitude', ''),
                 'quantidade_fotos': len(photos),
-                'tempo_registro_segundos': item.get('tempoRegistroSegundos', 0)
+                'tempo_registro_segundos': tempo_segundos,
+                'tempo_registro_formatado': format_duration_hms(tempo_segundos)
             })
 
     with open(archived_path, 'r', encoding='utf-8-sig', newline='') as src:

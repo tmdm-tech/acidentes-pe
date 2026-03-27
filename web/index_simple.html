@@ -864,6 +864,10 @@
     const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
     const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
     const ADMIN_KEY_STORAGE = 'observa_admin_key_v1';
+    const INSTALL_HELP_SEEN_KEY = 'install_help_seen_v1';
+    const INSTALL_BANNER_DISMISSED_KEY = 'install_banner_dismissed_v1';
+    const APP_INSTALLED_KEY = 'app_installed_v1';
+    const SW_UPDATE_RELOAD_KEY = 'sw_update_reload_once_v1';
     const STREET_ZOOM = 16;
     const AUTO_REFRESH_MS = 15000;
     let autoRefreshInterval = null;
@@ -1334,18 +1338,6 @@
       setStatus('GPS em tempo real ativado. Sua posição será atualizada no mapa automaticamente.', 'ok');
     }
 
-    function getTimestampFromItem(item) {
-      const idTs = Number(item && item.id);
-      if (Number.isFinite(idTs) && idTs > 0) return idTs;
-
-      const text = (item && item.dataHora) || '';
-      const m = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
-      if (!m) return Date.now();
-      const [, dd, mm, yyyy, hh, mi, ss] = m;
-      const dt = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss));
-      return dt.getTime();
-    }
-
     function formatElapsed(ms) {
       const totalSec = Math.max(0, Math.floor(ms / 1000));
       const hours = Math.floor(totalSec / 3600);
@@ -1356,12 +1348,10 @@
         + String(seconds).padStart(2, '0') + 's';
     }
 
-    function updateElapsedTimers() {
-      const now = Date.now();
-      document.querySelectorAll('[data-ts]').forEach((el) => {
-        const ts = Number(el.getAttribute('data-ts'));
-        el.textContent = formatElapsed(now - ts);
-      });
+    function getRegistrationDurationDisplay(item) {
+      const raw = Number(item && item.tempoRegistroSegundos);
+      if (!Number.isFinite(raw) || raw < 0) return '-';
+      return formatElapsed(raw * 1000);
     }
 
     function buildThumbs(item) {
@@ -1376,7 +1366,6 @@
     }
 
     function buildTableRow(item) {
-      const ts = getTimestampFromItem(item);
       const tr = document.createElement('tr');
       const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
       tr.innerHTML = `
@@ -1389,7 +1378,7 @@
         <td>${item.equipamentosSeguranca || '-'}</td>
         <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
         <td>${buildThumbs(item)}</td>
-        <td><span class="timer-chip" data-ts="${ts}">--</span></td>
+        <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
       `;
       rows.appendChild(tr);
     }
@@ -1425,7 +1414,6 @@
         const limit = Math.min(cursor + RENDER_BATCH_SIZE, pageItems.length);
         for (let i = cursor; i < limit; i += 1) {
           const item = pageItems[i];
-          const ts = getTimestampFromItem(item);
           const tr = document.createElement('tr');
           const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
           tr.innerHTML = `
@@ -1438,12 +1426,11 @@
             <td>${item.equipamentosSeguranca || '-'}</td>
             <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
             <td>${buildThumbs(item)}</td>
-            <td><span class="timer-chip" data-ts="${ts}">--</span></td>
+            <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
           `;
           fragment.appendChild(tr);
         }
         rows.appendChild(fragment);
-        updateElapsedTimers();
         cursor = limit;
 
         if (cursor < pageItems.length) {
@@ -1555,7 +1542,6 @@
         setRenderedItems(items.slice().reverse());
 
         if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(updateElapsedTimers, 1000);
       } catch (err) {
         const cached = getCachedAccidents();
         const pending = getOfflineQueue();
@@ -1577,7 +1563,6 @@
         empty.textContent = 'Mostrando cache local (offline).';
         setRenderedItems(fallback.slice().reverse());
         if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(updateElapsedTimers, 1000);
       }
     }
 
@@ -1634,7 +1619,56 @@
       setRenderedItems(snapshot.slice().reverse());
     }
 
+    function isAppRunningStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function markAppInstalled() {
+      localStorage.setItem(APP_INSTALLED_KEY, '1');
+      localStorage.setItem(INSTALL_HELP_SEEN_KEY, '1');
+      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, '1');
+    }
+
+    function isAppInstalled() {
+      return localStorage.getItem(APP_INSTALLED_KEY) === '1';
+    }
+
+    function hasSeenInstallInstructions() {
+      return localStorage.getItem(INSTALL_HELP_SEEN_KEY) === '1';
+    }
+
+    function markInstallInstructionsSeen() {
+      localStorage.setItem(INSTALL_HELP_SEEN_KEY, '1');
+    }
+
+    function dismissInstallBanner() {
+      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, '1');
+      installBanner.style.display = 'none';
+    }
+
+    function isInstallBannerDismissed() {
+      return localStorage.getItem(INSTALL_BANNER_DISMISSED_KEY) === '1';
+    }
+
+    function refreshInstallUIState() {
+      const installed = isAppInstalled() || isAppRunningStandalone();
+
+      if (installed) {
+        markAppInstalled();
+        btnInstall.style.display = 'none';
+        btnBannerInstall.style.display = 'none';
+        installBanner.style.display = 'none';
+        installStatus.textContent = 'App instalado com sucesso!';
+        return;
+      }
+
+      const shouldHideBanner = hasSeenInstallInstructions() || isInstallBannerDismissed();
+      installBanner.style.display = shouldHideBanner ? 'none' : '';
+    }
+
     function showInstallHelp() {
+      markInstallInstructionsSeen();
+      refreshInstallUIState();
       alert(
         '📲 Como instalar o Rede Vítima:\n\n' +
         '🤖 Android (Chrome):\n' +
@@ -1659,7 +1693,8 @@
       if (result && result.outcome === 'accepted') {
         installStatus.textContent = 'App instalado com sucesso!';
         btnInstall.disabled = true;
-        installBanner.hidden = true;
+        markAppInstalled();
+        refreshInstallUIState();
       } else {
         installStatus.textContent = 'Instalacao cancelada.';
       }
@@ -1669,7 +1704,10 @@
     btnInstall.addEventListener('click', triggerInstall);
     btnBannerInstall.addEventListener('click', triggerInstall);
     btnBannerHelp.addEventListener('click', showInstallHelp);
-    btnBannerClose.addEventListener('click', () => { installBanner.style.display = 'none'; });
+    btnBannerClose.addEventListener('click', () => {
+      markInstallInstructionsSeen();
+      dismissInstallBanner();
+    });
 
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
@@ -1677,18 +1715,46 @@
       btnInstall.style.display = '';
       btnBannerInstall.style.display = '';
       installStatus.textContent = 'Instalacao automatica disponivel! Toque em "Instalar automaticamente".';
+      refreshInstallUIState();
     });
 
     window.addEventListener('appinstalled', () => {
+      markAppInstalled();
       installStatus.textContent = 'App instalado com sucesso!';
       btnInstall.style.display = 'none';
       btnBannerInstall.style.display = 'none';
+      refreshInstallUIState();
     });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-          .then((reg) => reg.update())
+          .then((reg) => {
+            const activateUpdate = (worker) => {
+              if (!worker) return;
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            };
+
+            if (reg.waiting) activateUpdate(reg.waiting);
+
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  activateUpdate(newWorker);
+                }
+              });
+            });
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (sessionStorage.getItem(SW_UPDATE_RELOAD_KEY) === '1') return;
+              sessionStorage.setItem(SW_UPDATE_RELOAD_KEY, '1');
+              window.location.reload();
+            });
+
+            return reg.update();
+          })
           .catch(() => {});
       });
     }
@@ -1827,6 +1893,7 @@
     updateVictimsSelectorUI();
     sinistroComVitimasInput.addEventListener('change', updateVictimsSelectorUI);
     setPhotoTab('gallery');
+    refreshInstallUIState();
     setPointOnMap(-8.050000, -34.900000, true);
     startStopwatch();
     renderQuickLocalData();
