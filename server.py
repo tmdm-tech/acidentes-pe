@@ -425,7 +425,7 @@ def write_daily_map_for_date(target_date, accidents):
 <head>
   <meta charset=\"utf-8\" />
   <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
-  <title>Mapa Diario de Acidentes - {label}</title>
+    <title>Mapa Diário de Acidentes - {label}</title>
   <link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" crossorigin=\"\"/>
   <style>
     body {{ margin: 0; font-family: Arial, sans-serif; }}
@@ -435,7 +435,7 @@ def write_daily_map_for_date(target_date, accidents):
 </head>
 <body>
   <header>
-    <strong>Mapa Diario de Acidentes - {label}</strong>
+    <strong>Mapa Diário de Acidentes - {label}</strong>
     <div>Total de pontos: {len(markers)}</div>
   </header>
   <div id=\"map\"></div>
@@ -454,12 +454,12 @@ def write_daily_map_for_date(target_date, accidents):
       marker.bindPopup(
         `<b>${{p.endereco || '-'}}</b><br/>` +
         `Data/Hora: ${{p.dataHora || '-'}}<br/>` +
-        `Municipio: ${{p.municipioNotificacao || '-'}}<br/>` +
+        `Município: ${{p.municipioNotificacao || '-'}}<br/>` +
         `Notificante: ${{p.nomeNotificante || '-'}}<br/>` +
-        `Veiculo/Usuario: ${{p.veiculoUsuario || '-'}}<br/>` +
-                `Sinistro com vitimas: ${{p.sinistroComVitimas || '-'}}<br/>` +
-                `Quantidade de vitimas: ${{p.quantidadeVitimas || '-'}}<br/>` +
-                `Vitimas: ${{p.sinistroVitimas || '-'}}`
+        `Veículo/Usuário: ${{p.veiculoUsuario || '-'}}<br/>` +
+            `Sinistro com vítimas: ${{p.sinistroComVitimas || '-'}}<br/>` +
+            `Quantidade de vítimas: ${{p.quantidadeVitimas || '-'}}<br/>` +
+            `Vítimas: ${{p.sinistroVitimas || '-'}}`
       );
       bounds.push([p.lat, p.lon]);
     }});
@@ -831,11 +831,11 @@ def add_accident():
 
         sinistro_com_vitimas = str(data.get('sinistroComVitimas', '')).strip()
         if sinistro_com_vitimas not in {'Sim', 'Não'}:
-            return jsonify({'error': 'Campo sinistroComVitimas invalido. Use Sim ou Não.'}), 400
+            return jsonify({'error': 'Campo sinistroComVitimas inválido. Use Sim ou Não.'}), 400
 
         quantidade_vitimas = str(data.get('quantidadeVitimas', '')).strip()
         if sinistro_com_vitimas == 'Sim' and quantidade_vitimas not in {'1', '2 ou mais', 'Vítima fatal'}:
-            return jsonify({'error': 'Quantidade de vitimas invalida.'}), 400
+            return jsonify({'error': 'Quantidade de vítimas inválida.'}), 400
         if sinistro_com_vitimas == 'Não':
             quantidade_vitimas = ''
 
