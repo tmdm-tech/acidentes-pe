@@ -1,8 +1,9 @@
-const CACHE_NAME = 'observa-pe-v6';
-const API_CACHE = 'observa-pe-api-v1';
+const CACHE_NAME = 'rede-vitima-v7';
+const API_CACHE = 'rede-vitima-api-v2';
+const MANIFEST_URL = '/manifest.json?v=rede-vitima-v2';
 const ASSETS = [
   '/',
-  '/manifest.json',
+  MANIFEST_URL,
   '/icon.svg',
   '/sw.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
@@ -45,6 +46,22 @@ self.addEventListener('fetch', (event) => {
 
   const reqUrl = new URL(event.request.url);
   const isNavigation = event.request.mode === 'navigate';
+
+  if (reqUrl.pathname === '/manifest.json') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put('/manifest.json', copy.clone());
+            cache.put(MANIFEST_URL, copy);
+          });
+          return response;
+        })
+        .catch(() => caches.match(event.request) || caches.match(MANIFEST_URL) || caches.match('/manifest.json'))
+    );
+    return;
+  }
 
   // Navegacao prioriza cache para abrir rapido e atualiza em background.
   if (isNavigation) {
