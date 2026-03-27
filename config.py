@@ -1,5 +1,5 @@
 """
-Configuração de Produção do ObservaTrânsito
+Configuração de Produção da Rede Vítima
 Este arquivo facilita o deployment em ambiente de produção
 """
 

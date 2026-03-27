@@ -5,7 +5,7 @@
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"
-echo "║     🚀 ObservaTrânsito - Deploy Rápido Online 🚀       ║"
+echo "║       🚀 Rede Vítima - Deploy Rápido Online 🚀         ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -40,8 +40,8 @@ echo ""
 # Inicializar Git se não tiver
 if [ ! -d .git ]; then
     git init
-    git config user.name "ObservaTrânsito"
-    git config user.email "dev@observatrafego.com"
+    git config user.name "Rede Vítima"
+    git config user.email "dev@redevitima.com"
     echo -e "${GREEN}✅${NC} Git inicializado"
 else
     echo -e "${GREEN}✅${NC} Git já configurado"
@@ -50,7 +50,7 @@ fi
 echo ""
 echo -e "${BLUE}📦 Preparando arquivos...${NC}"
 git add .
-git commit -m "Deploy: ObservaTrânsito" 2>/dev/null || true
+git commit -m "Deploy: Rede Vítima" 2>/dev/null || true
 echo -e "${GREEN}✅${NC} Arquivos prontos"
 
 echo ""

@@ -2,13 +2,13 @@
 
 set -e
 
-# Script de inicializacao local do ObservaTransito
+# Script de inicializacao local do Rede Vítima
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_PY="$ROOT_DIR/.venv/bin/python"
 PORT="${PORT:-8000}"
 
-echo "=== ObservaTransito - Servidor de Acidentes ==="
+echo "=== Rede Vítima - Servidor de Acidentes ==="
 echo "Diretorio do projeto: $ROOT_DIR"
 
 cd "$ROOT_DIR"

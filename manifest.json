@@ -1,6 +1,6 @@
 {
-    "name": "ObservaTrânsito",
-    "short_name": "ObservaTrânsito",
+    "name": "Rede Vítima",
+    "short_name": "Rede Vítima",
     "description": "App para reportar acidentes de trânsito em Pernambuco",
     "start_url": "/",
     "display": "standalone",

@@ -1,4 +1,4 @@
-# ObservaTrânsito - App de Sinistro de Trânsito
+# Rede Vítima - App de Sinistro de Trânsito
 
 Aplicativo web para reportar acidentes de trânsito em Pernambuco, com funcionalidades de localização GPS, upload de fotos e armazenamento centralizado de dados.
 

@@ -19,8 +19,8 @@ fi
 if [ ! -d .git ]; then
     echo "📦 Inicializando repositório Git..."
     git init
-    git config user.name "ObservaTrânsito"
-    git config user.email "dev@observatrafego.com"
+    git config user.name "Rede Vítima"
+    git config user.email "dev@redevitima.com"
 else
     echo "✅ Repositório Git já existe"
 fi
@@ -35,7 +35,7 @@ git status
 
 echo ""
 echo "💾 Fazendo commit inicial..."
-git commit -m "ObservaTrânsito - App de reporte de acidentes
+git commit -m "Rede Vítima - App de reporte de acidentes
 
 Features:
 - Geolocalização GPS
