@@ -63,17 +63,29 @@ def _as_bool_env(name, default=False):
     return str(raw).strip().lower() in {'1', 'true', 'yes', 'on', 'sim'}
 
 
+def _can_use_directory(path):
+    """Return True when path exists/is creatable and writable by current process."""
+    try:
+        os.makedirs(path, exist_ok=True)
+    except Exception:
+        return False
+
+    return os.path.isdir(path) and os.access(path, os.W_OK)
+
+
 def resolve_data_dir():
     configured = os.environ.get('DATA_DIR', '').strip()
     if configured:
-        return configured
+        if _can_use_directory(configured):
+            return configured
+        return '.'
 
     # Em Render, /var/data e o local recomendado para disco persistente.
-    if os.environ.get('RENDER'):
+    if os.environ.get('RENDER') and _can_use_directory('/var/data'):
         return '/var/data'
 
     persistent_dir = '/var/data'
-    if os.path.isdir(persistent_dir) and os.access(persistent_dir, os.W_OK):
+    if _can_use_directory(persistent_dir):
         return persistent_dir
 
     return '.'

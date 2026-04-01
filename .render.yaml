@@ -10,7 +10,7 @@ services:
       - key: DATA_DIR
         value: /var/data
       - key: REQUIRE_PERSISTENT_STORAGE
-        value: "true"
+        value: "false"
     disk:
       name: acidentes-pe-data
       mountPath: /var/data
