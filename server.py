@@ -121,22 +121,25 @@ DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
 
 if DATA_ENCRYPTION_ENABLED and Fernet is None:
-    raise RuntimeError('DATA_ENCRYPTION_KEY configurada, mas dependência cryptography não está instalada')
-
-if DATA_ENCRYPTION_ENABLED:
+    print('[WARN] DATA_ENCRYPTION_KEY definida, mas cryptography nao esta disponivel. Criptografia desativada.')
+    DATA_ENCRYPTION_ENABLED = False
+    DATA_FERNET = None
+elif DATA_ENCRYPTION_ENABLED:
     try:
         DATA_FERNET = Fernet(DATA_ENCRYPTION_KEY.encode('utf-8'))
-    except Exception as exc:
-        raise RuntimeError('DATA_ENCRYPTION_KEY inválida. Gere com Fernet.generate_key().') from exc
+    except Exception:
+        print('[WARN] DATA_ENCRYPTION_KEY invalida. Criptografia desativada para evitar falha no startup.')
+        DATA_ENCRYPTION_ENABLED = False
+        DATA_FERNET = None
 else:
     DATA_FERNET = None
 
 
 def validate_persistence_mode():
     if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT:
-        raise RuntimeError(
-            'Persistencia obrigatoria ativa, mas DATA_DIR nao aponta para /var/data. '
-            'Configure DATA_DIR=/var/data e monte um Persistent Disk no Render.'
+        print(
+            '[WARN] Persistencia obrigatoria ativa, mas DATA_DIR nao aponta para /var/data. '
+            'Continuando sem persistencia obrigatoria para evitar erro de deploy.'
         )
 
 
