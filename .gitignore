@@ -6,3 +6,5 @@ __pycache__/
 venv/
 .env
 exports/
+.gradle/
+qrcode_*.png
