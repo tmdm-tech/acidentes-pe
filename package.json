@@ -1,6 +1,6 @@
 {
   "name": "observaatt-pe-ios-wrapper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Empacotamento iOS (Capacitor) para o ObservaATT PE",
   "scripts": {

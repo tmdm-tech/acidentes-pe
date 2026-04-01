@@ -9,10 +9,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ObservaATT PE">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="manifest" href="/manifest.json?v=observaatt-pe-v3">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg?v=4">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4">
+  <link rel="apple-touch-icon" href="/icon-192.png?v=4">
+  <link rel="manifest" href="/manifest.json?v=observaatt-pe-v4">
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
   <style>
@@ -298,6 +298,39 @@
     .install-banner button.btn-primary-install {
       background: rgba(255,255,255,0.92);
       color: #1d4ed8;
+    }
+
+    .update-banner {
+      position: sticky;
+      top: 0;
+      z-index: 1001;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.24);
+    }
+
+    .update-banner[hidden] { display: none; }
+
+    .update-banner p {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .update-banner button {
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      font-weight: 700;
+      border: 0;
+      background: #facc15;
+      color: #111827;
+      cursor: pointer;
     }
 
     .install-box {
@@ -619,6 +652,11 @@
   </style>
 </head>
 <body>
+  <div id="update-banner" class="update-banner" hidden>
+    <p id="update-banner-text">Nova versao detectada. Atualizando o app...</p>
+    <button type="button" id="btn-update-reload">Atualizar agora</button>
+  </div>
+
   <!-- Banner de instalação sticky no topo -->
   <div id="install-banner" class="install-banner">
     <p>📲 Instale o ObservaATT PE no seu celular!</p>
@@ -630,7 +668,7 @@
   </div>
 
   <header class="hero">
-    <h1><img src="/icon.svg" alt="Icone do app" width="30" height="30" style="vertical-align:middle; margin-right:8px; border-radius:8px;">ObservaATT PE</h1>
+    <h1><img src="/icon.svg?v=4" alt="Icone do app" width="30" height="30" style="vertical-align:middle; margin-right:8px; border-radius:8px;">ObservaATT PE</h1>
     <p>Sinistros com Registro Centralizado</p>
     <div class="palette" aria-hidden="true"></div>
   </header>
@@ -847,6 +885,9 @@
     const btnInstall = document.getElementById('btn-install');
     const btnInstallHelp = document.getElementById('btn-install-help');
     const installStatus = document.getElementById('install-status');
+    const updateBanner = document.getElementById('update-banner');
+    const updateBannerText = document.getElementById('update-banner-text');
+    const btnUpdateReload = document.getElementById('btn-update-reload');
     const installBanner = document.getElementById('install-banner');
     const btnBannerInstall = document.getElementById('btn-banner-install');
     const btnBannerHelp = document.getElementById('btn-banner-help');
@@ -884,6 +925,21 @@
     const AUTO_REFRESH_MS = 15000;
     let autoRefreshInterval = null;
     let adminAccessKey = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+
+    function showUpdateBanner(message, showAction = true) {
+      updateBannerText.textContent = message;
+      btnUpdateReload.hidden = !showAction;
+      updateBanner.hidden = false;
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.hidden = true;
+    }
+
+    btnUpdateReload.addEventListener('click', () => {
+      showUpdateBanner('Aplicando a nova versao do app...', false);
+      window.location.reload();
+    });
 
     function getVictimDisplay(item) {
       if (item.sinistroVitimas) return item.sinistroVitimas;
@@ -1748,12 +1804,17 @@
             };
 
             if (reg.waiting) activateUpdate(reg.waiting);
+            if (reg.waiting) {
+              showUpdateBanner('Nova versao disponivel. Atualizando o app instalado...', false);
+            }
 
             reg.addEventListener('updatefound', () => {
               const newWorker = reg.installing;
               if (!newWorker) return;
+              showUpdateBanner('Baixando atualizacao do app para os aparelhos instalados...', false);
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner('Nova versao pronta. Aplicando atualizacao...', false);
                   activateUpdate(newWorker);
                 }
               });
@@ -1762,12 +1823,15 @@
             navigator.serviceWorker.addEventListener('controllerchange', () => {
               if (sessionStorage.getItem(SW_UPDATE_RELOAD_KEY) === '1') return;
               sessionStorage.setItem(SW_UPDATE_RELOAD_KEY, '1');
+              showUpdateBanner('Atualizacao aplicada. Reabrindo o app...', false);
               window.location.reload();
             });
 
             return reg.update();
           })
-          .catch(() => {});
+          .catch(() => {
+            hideUpdateBanner();
+          });
       });
     }
 
