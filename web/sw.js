@@ -1,10 +1,12 @@
-const CACHE_NAME = 'observaatt-pe-v1';
-const API_CACHE = 'observaatt-pe-api-v1';
-const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v1';
+const CACHE_NAME = 'observaatt-pe-v3';
+const API_CACHE = 'observaatt-pe-api-v3';
+const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v3';
 const ASSETS = [
   '/',
   MANIFEST_URL,
   '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
   '/sw.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
