@@ -1,4 +1,4 @@
-# 🚀 Guia de Deploy Online da Rede Vítima
+# 🚀 Guia de Deploy Online da ObservaATT PE
 
 Siga as instruções abaixo para colocar seu app online e acessível de qualquer lugar!
 
@@ -16,7 +16,7 @@ git init
 git add .
 
 # Fazer commit
-git commit -m "Initial commit - Rede Vítima"
+git commit -m "Initial commit - ObservaATT PE"
 ```
 
 ### Passo 2: Criar Conta no Render

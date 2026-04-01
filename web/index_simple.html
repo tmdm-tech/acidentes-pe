@@ -3,26 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rede Vítima</title>
+  <title>ObservaATT PE</title>
   <meta name="theme-color" content="#1d4ed8">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Rede Vítima">
+  <meta name="apple-mobile-web-app-title" content="ObservaATT PE">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="manifest" href="/manifest.json?v=rede-vitima-v2">
+  <link rel="manifest" href="/manifest.json?v=observaatt-pe-v1">
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
   <style>
     :root {
+      --azul-escuro: #0b2f8a;
+      --azul-claro: #60a5fa;
+      --turquesa: #14b8a6;
+      --verde-escuro: #166534;
+      --verde-claro: #4ade80;
       --amarelo: #facc15;
-      --azul: #1d4ed8;
-      --verde: #15803d;
+      --laranja: #f97316;
       --vermelho: #dc2626;
+      --azul: #0b2f8a;
+      --verde: #166534;
       --card: #ffffff;
       --text: #0f172a;
       --muted: #475569;
-      --ok: #15803d;
+      --ok: #166534;
       --danger: #dc2626;
       --line: #e2e8f0;
     }
@@ -38,11 +44,15 @@
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 14% 86%, rgba(220, 38, 38, 0.28), transparent 30%),
-        radial-gradient(circle at 76% 84%, rgba(21, 128, 61, 0.28), transparent 36%),
-        radial-gradient(circle at 12% 15%, rgba(250, 204, 21, 0.34), transparent 30%),
-        radial-gradient(circle at 85% 20%, rgba(29, 78, 216, 0.28), transparent 32%),
-        linear-gradient(150deg, #dc2626 0%, #15803d 33%, #facc15 66%, #1d4ed8 100%);
+        radial-gradient(circle at 12% 18%, rgba(11, 47, 138, 0.34), transparent 32%),
+        radial-gradient(circle at 82% 18%, rgba(96, 165, 250, 0.3), transparent 34%),
+        radial-gradient(circle at 84% 52%, rgba(20, 184, 166, 0.28), transparent 30%),
+        radial-gradient(circle at 76% 84%, rgba(22, 101, 52, 0.28), transparent 34%),
+        radial-gradient(circle at 48% 88%, rgba(74, 222, 128, 0.28), transparent 32%),
+        radial-gradient(circle at 22% 82%, rgba(250, 204, 21, 0.28), transparent 32%),
+        radial-gradient(circle at 16% 58%, rgba(249, 115, 22, 0.26), transparent 30%),
+        radial-gradient(circle at 12% 34%, rgba(220, 38, 38, 0.24), transparent 28%),
+        linear-gradient(150deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
       min-height: 100vh;
       position: relative;
       overflow-x: hidden;
@@ -53,7 +63,7 @@
       position: fixed;
       inset: -20% -10% auto -10%;
       height: 55vh;
-      background: linear-gradient(115deg, rgba(220, 38, 38, 0.2), rgba(21, 128, 61, 0.2), rgba(250, 204, 21, 0.2), rgba(29, 78, 216, 0.2));
+      background: linear-gradient(115deg, rgba(11, 47, 138, 0.2), rgba(96, 165, 250, 0.2), rgba(20, 184, 166, 0.2), rgba(22, 101, 52, 0.2), rgba(74, 222, 128, 0.2), rgba(250, 204, 21, 0.2), rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.2));
       filter: blur(46px);
       pointer-events: none;
       z-index: -1;
@@ -61,7 +71,7 @@
     }
 
     .hero {
-      background: linear-gradient(115deg, var(--vermelho) 0%, var(--verde) 33%, var(--amarelo) 66%, var(--azul) 100%);
+      background: linear-gradient(115deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
       color: #fff;
       padding: 32px 18px;
       text-align: center;
@@ -85,7 +95,7 @@
       width: min(420px, 90%);
       height: 10px;
       border-radius: 999px;
-      background: linear-gradient(90deg, var(--vermelho), var(--verde), var(--amarelo), var(--azul));
+      background: linear-gradient(90deg, var(--azul-escuro), var(--azul-claro), var(--turquesa), var(--verde-escuro), var(--verde-claro), var(--amarelo), var(--laranja), var(--vermelho));
       border: 1px solid rgba(255, 255, 255, 0.65);
     }
 
@@ -242,7 +252,7 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      background: linear-gradient(115deg, var(--vermelho) 0%, var(--verde) 33%, var(--amarelo) 66%, var(--azul) 100%);
+      background: linear-gradient(115deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
       color: #fff;
       padding: 10px 16px;
       display: flex;
@@ -609,7 +619,7 @@
 <body>
   <!-- Banner de instalação sticky no topo -->
   <div id="install-banner" class="install-banner">
-    <p>📲 Instale o Rede Vítima no seu celular!</p>
+    <p>📲 Instale o ObservaATT PE no seu celular!</p>
     <div class="banner-actions">
       <button type="button" class="btn-primary-install" id="btn-banner-install" style="display:none">Instalar agora</button>
       <button type="button" id="btn-banner-help">📖 Como instalar</button>
@@ -618,7 +628,7 @@
   </div>
 
   <header class="hero">
-    <h1>Rede Vítima</h1>
+    <h1>ObservaATT PE</h1>
     <p>Sinistros com Registro Centralizado</p>
     <div class="palette" aria-hidden="true"></div>
   </header>
@@ -726,8 +736,8 @@
         </div>
 
         <div class="actions">
-          <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
           <button type="button" class="secondary" id="btn-location">&#128260; Rastrear em tempo real</button>
+          <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
           <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
         </div>
         <div class="install-box" hidden>
@@ -1670,7 +1680,7 @@
       markInstallInstructionsSeen();
       refreshInstallUIState();
       alert(
-        '📲 Como instalar o Rede Vítima:\n\n' +
+        '📲 Como instalar o ObservaATT PE:\n\n' +
         '🤖 Android (Chrome):\n' +
         '  1. Toque nos 3 pontos no canto superior direito\n' +
         '  2. Toque em "Instalar app" ou "Adicionar a tela inicial"\n\n' +

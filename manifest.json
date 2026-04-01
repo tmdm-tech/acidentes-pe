@@ -1,6 +1,6 @@
 {
-    "name": "Rede Vítima",
-    "short_name": "Rede Vítima",
+    "name": "ObservaATT PE",
+    "short_name": "ObservaATT",
     "description": "App para reportar acidentes de trânsito em Pernambuco",
     "start_url": "/",
     "display": "standalone",

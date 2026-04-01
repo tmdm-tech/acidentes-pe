@@ -1,6 +1,6 @@
-const CACHE_NAME = 'rede-vitima-v7';
-const API_CACHE = 'rede-vitima-api-v2';
-const MANIFEST_URL = '/manifest.json?v=rede-vitima-v2';
+const CACHE_NAME = 'observaatt-pe-v1';
+const API_CACHE = 'observaatt-pe-api-v1';
+const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v1';
 const ASSETS = [
   '/',
   MANIFEST_URL,

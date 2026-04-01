@@ -1,11 +1,11 @@
-# Preparacao iOS App Store (ObservaPE)
+# Preparacao iOS App Store (ObservaATT PE)
 
 Este guia deixa o projeto pronto para abrir no Xcode e publicar na Apple App Store.
 
 ## 1. O que foi preparado no repositório
 
 - `package.json` com scripts de empacotamento iOS (Capacitor)
-- `capacitor.config.ts` com `appId`, `appName` e `OBSERVAPE_APP_URL`
+- `capacitor.config.ts` com `appId`, `appName` e `OBSERVAATT_APP_URL`
 - `scripts/sync_web_for_ios.sh` para sincronizar assets de `web/` para `ios_web/`
 - `.env.ios.example` para configurar a URL publica do Render
 

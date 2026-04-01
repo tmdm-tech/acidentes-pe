@@ -1,4 +1,4 @@
-# Rede Vítima - App de Sinistro de Trânsito
+# ObservaATT PE - App de Sinistro de Trânsito
 
 Aplicativo web para reportar acidentes de trânsito em Pernambuco, com funcionalidades de localização GPS, upload de fotos e armazenamento centralizado de dados.
 
@@ -111,12 +111,21 @@ Para a versão nova funcionar no Render com persistência permanente:
 	- `pip install -r requirements.txt`
 2. **Start Command**
 	- `python -m gunicorn server:app --bind 0.0.0.0:$PORT`
-3. **Environment Variable**
+3. **Environment Variables**
 	- `DATA_DIR=/var/data`
+	- `REQUIRE_PERSISTENT_STORAGE=true`
 4. **Persistent Disk**
 	- Mount path: `/var/data`
 
 Com isso, o app grava `accidents.json` e `exports/` em disco persistente e os registros não se perdem em restart/deploy.
+
+Validacao obrigatoria apos deploy:
+
+- Acesse `GET /health`
+- Confirme:
+	- `persistence.isPersistent: true`
+	- `persistence.dataDir: /var/data`
+- Se estiver diferente, o servidor retorna `503` para impedir uso sem persistencia real.
 
 Recursos já ativos:
 
@@ -154,6 +163,28 @@ Para manter uma copia privada automatica dos registros no GitHub (repo privado),
 - `GITHUB_BACKUP_PATH=observa_backup` (opcional)
 
 Depois, no app em modo administrador, use o botao **Backup privado (GitHub)**.
+
+### Como criar o lugar no GitHub para receber dados e gerar planilhas automaticamente
+
+1. Crie um repositorio privado no GitHub (exemplo: `redevitima-storage`).
+2. No Render, configure:
+	- `GITHUB_BACKUP_REPO=seu-user/redevitima-storage`
+	- `GITHUB_BACKUP_TOKEN=token_com_permissao_contents_write`
+	- `GITHUB_BACKUP_BRANCH=main`
+	- `GITHUB_BACKUP_PATH=observa_backup`
+3. Copie para esse repositorio os arquivos:
+	- `.github/workflows/planilhas_storage.yml`
+	- `scripts/generate_storage_spreadsheets.py`
+4. No app, entre como administrador e clique em **Backup privado (GitHub)**.
+5. O GitHub Actions vai processar `observa_backup/accidents_latest.json` e gerar automaticamente:
+	- `planilhas/acidentes_diario_latest.csv`
+	- `planilhas/acidentes_semanal_latest.csv`
+	- `planilhas/acidentes_mensal_latest.csv`
+
+Observacao:
+
+- O workflow tambem salva versoes historicas com timestamp em `planilhas/`.
+- Arquivos CSV podem ser abertos no Excel, LibreOffice e Google Sheets.
 
 ## 🛡️ Ambiente seguro recomendado (producao)
 

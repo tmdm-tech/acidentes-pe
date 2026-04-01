@@ -16,7 +16,7 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     with socketserver.TCPServer(("", PORT), MyHTTPRequestHandler) as httpd:
-        print(f"\n🚀 Rede Vítima está rodando!")
+        print(f"\n🚀 ObservaATT PE está rodando!")
         print(f"📱 Abra no seu navegador: http://localhost:{PORT}/index_simple.html")
         print(f"📂 Servindo arquivos de: {DIRECTORY}\n")
         print("Pressione Ctrl+C para parar...\n")

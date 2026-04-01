@@ -1,8 +1,8 @@
 {
-  "name": "observape-ios-wrapper",
+  "name": "observaatt-pe-ios-wrapper",
   "version": "1.0.0",
   "private": true,
-  "description": "Empacotamento iOS (Capacitor) para o ObservaPE",
+  "description": "Empacotamento iOS (Capacitor) para o ObservaATT PE",
   "scripts": {
     "sync:web": "bash scripts/sync_web_for_ios.sh",
     "ios:init": "npx cap add ios",

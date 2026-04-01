@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Script para gerar QR Code do ObservaTrânsito
-Facilita o acesso móvel ao app
+Script para gerar QR Code em PNG para acesso ao app.
 """
 
-import socket
-import qrcode
 import os
+import socket
+
+import qrcode
+from PIL import ImageOps
 
 def get_local_ip():
     """Obtém o IP local da máquina"""
@@ -20,28 +21,37 @@ def get_local_ip():
     except:
         return "localhost"
 
-def generate_qr_code():
-    """Gera QR Code para acesso ao app"""
+def get_app_url():
+    """Obtém a URL pública do app ou cai para acesso local."""
+    configured_url = os.getenv("OBSERVAATT_APP_URL") or os.getenv("OBSERVAPE_APP_URL") or os.getenv("REDEVITIMA_APP_URL")
+    if configured_url:
+        return configured_url.strip()
+
     local_ip = get_local_ip()
-    url = f"http://{local_ip}:8000"
+    return f"http://{local_ip}:8000"
 
-    print("=== ObservaTrânsito - QR Code ===")
+
+def generate_qr_code():
+    """Gera QR Code para acesso ao app."""
+    url = get_app_url()
+    output_file = os.getenv("QR_OUTPUT_FILE", "qrcode_redevitima.png")
+
+    print("=== ObservaATT PE - QR Code ===")
     print(f"URL do app: {url}")
-    print("Escaneie o QR Code abaixo com seu celular:")
-    print()
+    print(f"Arquivo de saída: {output_file}")
 
-    # Gerar QR Code
     qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=2,
-        border=2,
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=20,
+        border=4,
     )
     qr.add_data(url)
     qr.make(fit=True)
 
-    # Imprimir QR Code no terminal
-    qr.print_ascii()
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    img = ImageOps.expand(img, border=40, fill="white")
+    img.save(output_file, format="PNG", optimize=False)
 
     print()
     print("Instruções:")
@@ -50,6 +60,7 @@ def generate_qr_code():
     print("3. Toque em 'Adicionar à tela inicial' para instalar")
     print()
     print("Ou acesse diretamente:", url)
+    print("PNG gerado em:", output_file)
 
 if __name__ == "__main__":
     try:

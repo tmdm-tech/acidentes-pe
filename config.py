@@ -1,5 +1,5 @@
 """
-Configuração de Produção da Rede Vítima
+Configuração de Produção da ObservaATT PE
 Este arquivo facilita o deployment em ambiente de produção
 """
 

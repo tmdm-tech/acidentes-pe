@@ -56,12 +56,22 @@ MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000
 
 
+def _as_bool_env(name, default=False):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {'1', 'true', 'yes', 'on', 'sim'}
+
+
 def resolve_data_dir():
     configured = os.environ.get('DATA_DIR', '').strip()
     if configured:
         return configured
 
-    # Em provedores como Render, /var/data e persistente entre deploys.
+    # Em Render, /var/data e o local recomendado para disco persistente.
+    if os.environ.get('RENDER'):
+        return '/var/data'
+
     persistent_dir = '/var/data'
     if os.path.isdir(persistent_dir) and os.access(persistent_dir, os.W_OK):
         return persistent_dir
@@ -69,7 +79,17 @@ def resolve_data_dir():
     return '.'
 
 
+def is_persistent_data_dir(path):
+    normalized = os.path.abspath(path)
+    return normalized == '/var/data' or normalized.startswith('/var/data/')
+
+
 DATA_DIR = resolve_data_dir()
+DATA_DIR_PERSISTENT = is_persistent_data_dir(DATA_DIR)
+REQUIRE_PERSISTENT_STORAGE = _as_bool_env(
+    'REQUIRE_PERSISTENT_STORAGE',
+    default=bool(os.environ.get('RENDER')),
+)
 ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
 ACCIDENTS_BAK_FILE = os.path.join(DATA_DIR, 'accidents.bak.json')
 EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
@@ -98,6 +118,14 @@ if DATA_ENCRYPTION_ENABLED:
         raise RuntimeError('DATA_ENCRYPTION_KEY inválida. Gere com Fernet.generate_key().') from exc
 else:
     DATA_FERNET = None
+
+
+def validate_persistence_mode():
+    if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT:
+        raise RuntimeError(
+            'Persistencia obrigatoria ativa, mas DATA_DIR nao aponta para /var/data. '
+            'Configure DATA_DIR=/var/data e monte um Persistent Disk no Render.'
+        )
 
 
 def ensure_exports_dir():
@@ -663,6 +691,7 @@ def load_accidents():
     return []
 
 def save_accidents(accidents):
+    validate_persistence_mode()
     ensure_exports_dir()
 
     if os.path.exists(ACCIDENTS_FILE):
@@ -699,7 +728,17 @@ def index():
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy'}), 200
+    persistence_ok = (not REQUIRE_PERSISTENT_STORAGE) or DATA_DIR_PERSISTENT
+    payload = {
+        'status': 'healthy' if persistence_ok else 'degraded',
+        'persistence': {
+            'dataDir': DATA_DIR,
+            'isPersistent': DATA_DIR_PERSISTENT,
+            'requirePersistentStorage': REQUIRE_PERSISTENT_STORAGE,
+        }
+    }
+    status_code = 200 if persistence_ok else 503
+    return jsonify(payload), status_code
 
 @app.route('/version')
 def version():
@@ -921,6 +960,7 @@ def delete_accident(accident_id):
         'error': 'Remocao desativada. Os registros sao permanentes.'
     }), 403
 
+validate_persistence_mode()
 start_daily_scheduler()
 ensure_scheduled_daily_exports(load_accidents())
 

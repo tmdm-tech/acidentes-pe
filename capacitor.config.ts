@@ -1,10 +1,10 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-const appUrl = process.env.OBSERVAPE_APP_URL || 'https://SEU-SERVICO.onrender.com';
+const appUrl = process.env.OBSERVAATT_APP_URL || process.env.OBSERVAPE_APP_URL || 'https://SEU-SERVICO.onrender.com';
 
 const config: CapacitorConfig = {
   appId: 'br.gov.pe.observape',
-  appName: 'ObservaPE',
+  appName: 'ObservaATT PE',
   webDir: 'ios_web',
   server: {
     // Em producao iOS, carregamos o app via HTTPS no Render para manter /api/* funcional

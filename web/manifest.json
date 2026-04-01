@@ -1,6 +1,6 @@
 {
-  "name": "Rede Vítima",
-  "short_name": "Rede Vítima",
+  "name": "ObservaATT PE",
+  "short_name": "ObservaATT",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
@@ -33,7 +33,7 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "label": "Rede Vítima"
+      "label": "ObservaATT PE"
     }
   ]
 }
