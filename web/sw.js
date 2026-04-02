@@ -1,10 +1,9 @@
-const CACHE_NAME = 'observaatt-pe-v6';
-const API_CACHE = 'observaatt-pe-api-v6';
-const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v6';
+const CACHE_NAME = 'observaatt-pe-v7';
+const API_CACHE = 'observaatt-pe-api-v7';
+const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v7';
 const ASSETS = [
   '/',
   MANIFEST_URL,
-  '/icon.svg?v=6',
   '/launcher-home-3d-192.png',
   '/launcher-home-3d-512.png',
   '/launcher-home-3d-maskable-192.png',
