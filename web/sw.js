@@ -1,13 +1,13 @@
-const CACHE_NAME = 'observaatt-pe-v8';
-const API_CACHE = 'observaatt-pe-api-v8';
-const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v8';
+const CACHE_NAME = 'observaatt-pe-v9';
+const API_CACHE = 'observaatt-pe-api-v9';
+const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v9';
 const ASSETS = [
   '/',
   MANIFEST_URL,
-  '/launcher-home-3d-192.png?v=8',
-  '/launcher-home-3d-512.png?v=8',
-  '/launcher-home-3d-maskable-192.png?v=8',
-  '/launcher-home-3d-maskable-512.png?v=8',
+  '/launcher-home-v9-192.png?v=9',
+  '/launcher-home-v9-512.png?v=9',
+  '/launcher-home-v9-maskable-192.png?v=9',
+  '/launcher-home-v9-maskable-512.png?v=9',
   '/sw.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'

@@ -12,25 +12,25 @@
     "prefer_related_applications": false,
     "icons": [
         {
-            "src": "LauncherHome-3d-192.png?v=8",
+            "src": "LauncherHome-v9-192.png?v=9",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "LauncherHome-3d-512.png?v=8",
+            "src": "LauncherHome-v9-512.png?v=9",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "LauncherHome-3d-maskable-192.png?v=8",
+            "src": "LauncherHome-v9-maskable-192.png?v=9",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "maskable"
         },
         {
-            "src": "LauncherHome-3d-maskable-512.png?v=8",
+            "src": "LauncherHome-v9-maskable-512.png?v=9",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
