@@ -3,21 +3,26 @@
     <clipPath id="roundMask">
       <rect x="28" y="28" width="456" height="456" rx="108"/>
     </clipPath>
+    <linearGradient id="pinRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#991b1b"/>
+    </linearGradient>
   </defs>
 
   <g clip-path="url(#roundMask)">
     <rect width="512" height="512" fill="#0B2F8A"/>
-    <polygon points="-60,512 124,512 572,0 388,0" fill="#16A34A"/>
-    <polygon points="58,512 242,512 690,0 506,0" fill="#FACC15"/>
-    <polygon points="176,512 360,512 808,0 624,0" fill="#DC2626"/>
+    <polygon points="-70,512 120,512 582,0 392,0" fill="#16A34A"/>
+    <polygon points="48,512 238,512 700,0 510,0" fill="#FACC15"/>
+    <polygon points="166,512 356,512 818,0 628,0" fill="#DC2626"/>
+    <ellipse cx="136" cy="92" rx="170" ry="84" fill="#93c5fd" opacity="0.28"/>
+    <rect x="0" y="352" width="512" height="160" fill="#111827" opacity="0.18"/>
   </g>
 
-  <path d="M256 455L187 338C162 297 144 264 144 229C144 163 190 116 256 116C322 116 368 163 368 229C368 264 350 297 325 338L256 455Z" fill="#F8FAFC"/>
-
-  <circle cx="256" cy="235" r="108" fill="#FFFFFF" stroke="#0F172A" stroke-width="8"/>
-  <circle cx="256" cy="200" r="16" fill="#FACC15"/>
-
+  <path d="M256 450L182 338C154 296 138 262 138 226C138 159 187 110 256 110C325 110 374 159 374 226C374 262 358 296 330 338L256 450Z" fill="url(#pinRed)"/>
+  <ellipse cx="256" cy="236" rx="108" ry="108" fill="#d4d4d8" stroke="#0f172a" stroke-width="8"/>
+  <ellipse cx="224" cy="210" rx="34" ry="64" fill="#fb7185" opacity="0.35"/>
+  <circle cx="256" cy="196" r="16" fill="#f59e0b"/>
   <path d="M200 252C216 279 237 292 256 292C275 292 296 279 312 252" fill="none" stroke="#16A34A" stroke-width="10" stroke-linecap="round"/>
-  <path d="M206 266C222 286 241 297 256 297C271 297 290 286 306 266" fill="none" stroke="#FACC15" stroke-width="9" stroke-linecap="round"/>
-  <path d="M212 280C228 296 245 305 256 305C267 305 284 296 300 280" fill="none" stroke="#DC2626" stroke-width="8" stroke-linecap="round"/>
+  <path d="M206 267C222 286 241 297 256 297C271 297 290 286 306 267" fill="none" stroke="#FACC15" stroke-width="9" stroke-linecap="round"/>
+  <path d="M212 281C228 296 245 305 256 305C267 305 284 296 300 281" fill="none" stroke="#DC2626" stroke-width="8" stroke-linecap="round"/>
 </svg>
