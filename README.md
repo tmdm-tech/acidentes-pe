@@ -99,9 +99,9 @@ Cada relatório de acidente inclui:
 
 ## 🔒 Privacidade
 
-- Dados armazenados localmente no servidor
-- Acesso restrito à rede local
-- Não há transmissão para servidores externos
+- Dados podem ser armazenados localmente no servidor ou no Supabase, conforme configuracao
+- Acesso restrito ao app e ao backend configurado
+- Em producao, use `SUPABASE_SERVICE_ROLE_KEY` apenas no Render, nunca no frontend
 
 ## ☁️ Configuração no Render (o que faltava)
 
@@ -114,18 +114,137 @@ Para a versão nova funcionar no Render com persistência permanente:
 3. **Environment Variables**
 	- `DATA_DIR=/var/data`
 	- `REQUIRE_PERSISTENT_STORAGE=true`
+	- `SUPABASE_URL=https://SEU-PROJETO.supabase.co`
+	- `SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key`
+	- `SUPABASE_TABLE=acidentes`
+	- `SUPABASE_BOOTSTRAP_LOCAL=true`
 4. **Persistent Disk**
 	- Mount path: `/var/data`
 
-Com isso, o app grava `accidents.json` e `exports/` em disco persistente e os registros não se perdem em restart/deploy.
+### Preenchimento no painel do Render
+
+No seu servico Web do Render:
+
+1. Abra o servico.
+2. Entre em **Environment**.
+3. Clique em **Add Environment Variable**.
+4. Cadastre exatamente estes pares:
+	- Key: `DATA_DIR`
+	- Value: `/var/data`
+	- Key: `REQUIRE_PERSISTENT_STORAGE`
+	- Value: `true`
+	- Key: `SUPABASE_URL`
+	- Value: `https://SEU-PROJETO.supabase.co`
+	- Key: `SUPABASE_SERVICE_ROLE_KEY`
+	- Value: chave `service_role` copiada em Supabase > Settings > API
+	- Key: `SUPABASE_TABLE`
+	- Value: `acidentes`
+	- Key: `SUPABASE_BOOTSTRAP_LOCAL`
+	- Value: `true`
+	- Key: `ADMIN_ACCESS_KEY`
+	- Value: uma chave forte definida por voce
+5. Salve as variaveis.
+6. Rode um novo deploy.
+
+Observacoes operacionais:
+
+- `SUPABASE_SERVICE_ROLE_KEY` deve ficar apenas no Render.
+- Nunca coloque essa chave no app, no JavaScript do frontend ou no mobile.
+- `SUPABASE_BOOTSTRAP_LOCAL=true` so faz importacao automatica do JSON local se a tabela estiver vazia.
+- Se voce nao quiser mais esse comportamento depois da migracao inicial, pode trocar para `false`.
+
+Com isso, o app passa a gravar os registros no Supabase. O arquivo `accidents.json` continua existindo como cache/fallback local e as exportacoes CSV continuam sendo geradas pelo backend.
+
+Fluxo recomendado em producao:
+
+- App envia o sinistro para `POST /api/accidents`
+- Backend no Render grava na tabela `acidentes` do Supabase
+- Backend le do Supabase para listar registros e gerar CSVs
+- `SUPABASE_BOOTSTRAP_LOCAL=true` importa automaticamente o `accidents.json` para o banco na primeira inicializacao, se a tabela ainda estiver vazia
 
 Validacao obrigatoria apos deploy:
 
 - Acesse `GET /health`
 - Confirme:
-	- `persistence.isPersistent: true`
+	- `status: healthy`
+	- `storage.mode: supabase`
+	- `storage.supabaseConfigured: true`
+	- `storage.supabaseEnabled: true`
+	- `storage.supabaseHealthy: true`
+	- `persistence.isPersistent: true` ou armazenamento principal via Supabase ativo
 	- `persistence.dataDir: /var/data`
 - Se estiver diferente, o servidor retorna `503` para impedir uso sem persistencia real.
+
+### Como interpretar o endpoint /health
+
+Exemplo esperado quando tudo estiver certo:
+
+```json
+{
+	"status": "healthy",
+	"storage": {
+		"mode": "supabase",
+		"supabaseConfigured": true,
+		"supabaseEnabled": true,
+		"supabaseHealthy": true,
+		"supabaseTable": "acidentes"
+	},
+	"persistence": {
+		"dataDir": "/var/data",
+		"isPersistent": true,
+		"requirePersistentStorage": true
+	}
+}
+```
+
+Leitura rapida dos campos:
+
+- `mode: supabase` significa que a leitura principal esta vindo do banco.
+- `supabaseConfigured: true` significa que as variaveis foram preenchidas.
+- `supabaseEnabled: true` significa que o cliente foi criado no backend.
+- `supabaseHealthy: true` significa que a tabela respondeu com sucesso.
+- `isPersistent: true` significa que o disco local persistente tambem esta disponivel para cache/exportacoes.
+
+Se `supabaseConfigured` estiver `false`, faltou configurar variaveis no Render.
+Se `supabaseEnabled` estiver `false`, normalmente ha problema de credencial ou inicializacao do cliente.
+Se `supabaseHealthy` estiver `false`, geralmente a tabela nao existe, a chave esta errada ou a permissao nao esta correta.
+
+### Endpoint de diagnostico do Supabase
+
+Foi adicionado o endpoint administrativo `GET /api/admin/supabase-status`.
+
+Uso:
+
+- Envie o header `X-Admin-Key` com o valor da sua `ADMIN_ACCESS_KEY`.
+- O endpoint retorna se o Supabase esta configurado, conectado, se a tabela esta acessivel e quantos registros existem.
+
+Exemplo de resposta saudavel:
+
+```json
+{
+	"success": true,
+	"storageMode": "supabase",
+	"diagnostics": {
+		"configured": true,
+		"enabled": true,
+		"table": "acidentes",
+		"bootstrapLocal": true,
+		"healthy": true,
+		"connected": true,
+		"tableAccessible": true,
+		"recordCount": 25,
+		"error": ""
+	}
+}
+```
+
+Esse endpoint e o mais direto para descobrir se o problema esta:
+
+- na configuracao das variaveis,
+- na conexao com o Supabase,
+- ou na tabela `acidentes`.
+
+Antes do primeiro deploy com Supabase, crie a tabela executando o SQL do arquivo `supabase/acidentes_schema.sql` no SQL Editor do Supabase.
 
 Recursos já ativos:
 

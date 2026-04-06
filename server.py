@@ -15,6 +15,12 @@ from urllib import request as urllib_request
 from urllib import error as urllib_error
 
 try:
+    _supabase_module = importlib.import_module('supabase')
+    create_client = getattr(_supabase_module, 'create_client')
+except Exception:  # pragma: no cover - fallback para ambiente sem dependencia
+    create_client = None
+
+try:
     _fernet_module = importlib.import_module('cryptography.fernet')
     Fernet = getattr(_fernet_module, 'Fernet')
     InvalidToken = getattr(_fernet_module, 'InvalidToken')
@@ -119,6 +125,11 @@ GITHUB_BACKUP_PATH = os.environ.get('GITHUB_BACKUP_PATH', 'observa_backup')
 BACKUP_STATE_FILE = os.path.join(DATA_DIR, 'backup_state.json')
 DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '').strip()
+SUPABASE_TABLE = os.environ.get('SUPABASE_TABLE', 'acidentes').strip() or 'acidentes'
+SUPABASE_BOOTSTRAP_LOCAL = _as_bool_env('SUPABASE_BOOTSTRAP_LOCAL', default=True)
+SUPABASE_PAGE_SIZE = 1000
 
 if DATA_ENCRYPTION_ENABLED and Fernet is None:
     print('[WARN] DATA_ENCRYPTION_KEY definida, mas cryptography nao esta disponivel. Criptografia desativada.')
@@ -134,13 +145,76 @@ elif DATA_ENCRYPTION_ENABLED:
 else:
     DATA_FERNET = None
 
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and create_client is None:
+    print('[WARN] Variaveis do Supabase configuradas, mas dependencia supabase nao esta disponivel.')
+
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and create_client is not None:
+    try:
+        SUPABASE_CLIENT = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    except Exception:
+        print('[WARN] Falha ao inicializar cliente Supabase. API seguira com fallback local.')
+        SUPABASE_CLIENT = None
+else:
+    SUPABASE_CLIENT = None
+
 
 def validate_persistence_mode():
-    if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT:
+    if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT and not supabase_enabled():
         print(
             '[WARN] Persistencia obrigatoria ativa, mas DATA_DIR nao aponta para /var/data. '
             'Continuando sem persistencia obrigatoria para evitar erro de deploy.'
         )
+
+
+def supabase_enabled():
+    return SUPABASE_CLIENT is not None
+
+
+def supabase_configured():
+    return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+
+
+def storage_mode_label():
+    return 'supabase' if supabase_enabled() else 'local-json'
+
+
+def get_supabase_diagnostics():
+    diagnostics = {
+        'configured': supabase_configured(),
+        'enabled': supabase_enabled(),
+        'table': SUPABASE_TABLE,
+        'bootstrapLocal': SUPABASE_BOOTSTRAP_LOCAL,
+        'healthy': False,
+        'connected': False,
+        'tableAccessible': False,
+        'recordCount': None,
+        'error': '',
+    }
+
+    if not supabase_configured():
+        diagnostics['error'] = 'SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nao configuradas'
+        return diagnostics
+
+    if not supabase_enabled():
+        diagnostics['error'] = 'Cliente Supabase indisponivel; verifique dependencia e credenciais'
+        return diagnostics
+
+    try:
+        response = (
+            SUPABASE_CLIENT
+            .table(SUPABASE_TABLE)
+            .select('id', count='exact')
+            .limit(1)
+            .execute()
+        )
+        diagnostics['connected'] = True
+        diagnostics['tableAccessible'] = True
+        diagnostics['recordCount'] = getattr(response, 'count', None)
+        diagnostics['healthy'] = True
+    except Exception as exc:
+        diagnostics['error'] = str(exc)
+
+    return diagnostics
 
 
 def ensure_exports_dir():
@@ -190,6 +264,178 @@ def _deserialize_accidents_payload(payload):
         return loaded if isinstance(loaded, list) else []
 
     return []
+
+
+def _normalize_accident_record(item):
+    if not isinstance(item, dict):
+        return {}
+
+    photos = item.get('fotos', [])
+    if not isinstance(photos, list):
+        photos = []
+
+    return {
+        'id': str(item.get('id', '')).strip(),
+        'municipioNotificacao': str(item.get('municipioNotificacao', '')).strip(),
+        'nomeNotificante': str(item.get('nomeNotificante', '')).strip(),
+        'endereco': str(item.get('endereco', '')).strip(),
+        'veiculoUsuario': str(item.get('veiculoUsuario', '')).strip(),
+        'sinistroComVitimas': str(item.get('sinistroComVitimas', '')).strip(),
+        'quantidadeVitimas': str(item.get('quantidadeVitimas', '')).strip(),
+        'sinistroVitimas': str(item.get('sinistroVitimas', '')).strip(),
+        'equipamentosSeguranca': str(item.get('equipamentosSeguranca', '')).strip(),
+        'latitude': str(item.get('latitude', '')).strip(),
+        'longitude': str(item.get('longitude', '')).strip(),
+        'descricao': str(item.get('descricao', '')).strip(),
+        'fotos': photos,
+        'tempoRegistroSegundos': int(item.get('tempoRegistroSegundos', 0) or 0),
+        'dataHora': str(item.get('dataHora', '')).strip(),
+        'photoCount': len(photos),
+    }
+
+
+def _local_load_accidents():
+    ensure_exports_dir()
+    if os.path.exists(ACCIDENTS_FILE):
+        try:
+            with open(ACCIDENTS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                loaded = _deserialize_accidents_payload(data)
+                return [_normalize_accident_record(item) for item in loaded if isinstance(item, dict)]
+        except json.JSONDecodeError:
+            if os.path.exists(ACCIDENTS_BAK_FILE):
+                with open(ACCIDENTS_BAK_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    loaded = _deserialize_accidents_payload(data)
+                    return [_normalize_accident_record(item) for item in loaded if isinstance(item, dict)]
+        except RuntimeError:
+            raise
+    return []
+
+
+def _local_save_accidents(accidents):
+    validate_persistence_mode()
+    ensure_exports_dir()
+
+    if os.path.exists(ACCIDENTS_FILE):
+        shutil.copy2(ACCIDENTS_FILE, ACCIDENTS_BAK_FILE)
+        secure_file_permissions(ACCIDENTS_BAK_FILE)
+
+    tmp_file = f'{ACCIDENTS_FILE}.tmp'
+    with open(tmp_file, 'w', encoding='utf-8') as f:
+        payload = _serialize_accidents_payload(accidents)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+
+    os.replace(tmp_file, ACCIDENTS_FILE)
+    secure_file_permissions(ACCIDENTS_FILE)
+
+
+def _supabase_record_from_accident(accident):
+    normalized = _normalize_accident_record(accident)
+    created_at = None
+    try:
+        created_at = parse_accident_datetime(normalized).isoformat()
+    except Exception:
+        created_at = datetime.now().isoformat()
+
+    return {
+        'id': normalized['id'],
+        'municipio_notificacao': normalized['municipioNotificacao'],
+        'nome_notificante': normalized['nomeNotificante'],
+        'endereco': normalized['endereco'],
+        'veiculo_usuario': normalized['veiculoUsuario'],
+        'sinistro_com_vitimas': normalized['sinistroComVitimas'],
+        'quantidade_vitimas': normalized['quantidadeVitimas'],
+        'sinistro_vitimas': normalized['sinistroVitimas'],
+        'equipamentos_seguranca': normalized['equipamentosSeguranca'],
+        'latitude': normalized['latitude'],
+        'longitude': normalized['longitude'],
+        'descricao': normalized['descricao'],
+        'fotos': normalized['fotos'],
+        'tempo_registro_segundos': normalized['tempoRegistroSegundos'],
+        'data_hora': normalized['dataHora'],
+        'photo_count': normalized['photoCount'],
+        'created_at': created_at,
+    }
+
+
+def _accident_from_supabase_record(row):
+    photos = row.get('fotos', [])
+    if not isinstance(photos, list):
+        photos = []
+    return {
+        'id': str(row.get('id', '')).strip(),
+        'municipioNotificacao': str(row.get('municipio_notificacao', '')).strip(),
+        'nomeNotificante': str(row.get('nome_notificante', '')).strip(),
+        'endereco': str(row.get('endereco', '')).strip(),
+        'veiculoUsuario': str(row.get('veiculo_usuario', '')).strip(),
+        'sinistroComVitimas': str(row.get('sinistro_com_vitimas', '')).strip(),
+        'quantidadeVitimas': str(row.get('quantidade_vitimas', '')).strip(),
+        'sinistroVitimas': str(row.get('sinistro_vitimas', '')).strip(),
+        'equipamentosSeguranca': str(row.get('equipamentos_seguranca', '')).strip(),
+        'latitude': str(row.get('latitude', '')).strip(),
+        'longitude': str(row.get('longitude', '')).strip(),
+        'descricao': str(row.get('descricao', '')).strip(),
+        'fotos': photos,
+        'tempoRegistroSegundos': int(row.get('tempo_registro_segundos', 0) or 0),
+        'dataHora': str(row.get('data_hora', '')).strip(),
+        'photoCount': int(row.get('photo_count', len(photos)) or len(photos)),
+    }
+
+
+def _supabase_fetch_all_accidents():
+    records = []
+    offset = 0
+
+    while True:
+        response = (
+            SUPABASE_CLIENT
+            .table(SUPABASE_TABLE)
+            .select('*')
+            .order('created_at', desc=False)
+            .range(offset, offset + SUPABASE_PAGE_SIZE - 1)
+            .execute()
+        )
+        rows = response.data or []
+        records.extend(_accident_from_supabase_record(row) for row in rows if isinstance(row, dict))
+
+        if len(rows) < SUPABASE_PAGE_SIZE:
+            break
+        offset += SUPABASE_PAGE_SIZE
+
+    return records
+
+
+def _supabase_insert_accident(accident):
+    payload = _supabase_record_from_accident(accident)
+    SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+
+
+def bootstrap_supabase_from_local():
+    if not supabase_enabled() or not SUPABASE_BOOTSTRAP_LOCAL:
+        return {'enabled': supabase_enabled(), 'bootstrapped': False, 'records': 0}
+
+    try:
+        response = SUPABASE_CLIENT.table(SUPABASE_TABLE).select('id').limit(1).execute()
+        existing = response.data or []
+    except Exception:
+        return {'enabled': True, 'bootstrapped': False, 'records': 0}
+
+    if existing:
+        return {'enabled': True, 'bootstrapped': False, 'records': 0}
+
+    local_records = _local_load_accidents()
+    if not local_records:
+        return {'enabled': True, 'bootstrapped': False, 'records': 0}
+
+    payload = [_supabase_record_from_accident(item) for item in local_records if item.get('id')]
+    if not payload:
+        return {'enabled': True, 'bootstrapped': False, 'records': 0}
+
+    SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+    return {'enabled': True, 'bootstrapped': True, 'records': len(payload)}
 
 
 def read_backup_state():
@@ -688,40 +934,16 @@ def generate_all_exports(accidents):
     }
 
 def load_accidents():
-    ensure_exports_dir()
-    if os.path.exists(ACCIDENTS_FILE):
+    if supabase_enabled():
         try:
-            with open(ACCIDENTS_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return _deserialize_accidents_payload(data)
-        except json.JSONDecodeError:
-            # Se o arquivo principal corromper, tenta recuperar do backup.
-            if os.path.exists(ACCIDENTS_BAK_FILE):
-                with open(ACCIDENTS_BAK_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return _deserialize_accidents_payload(data)
-        except RuntimeError:
-            # Propaga erro de criptografia para facilitar diagnostico de ambiente.
-            raise
-    return []
+            return _supabase_fetch_all_accidents()
+        except Exception as exc:
+            print(f'[WARN] Falha ao ler Supabase; usando fallback local. Motivo: {exc}')
+    return _local_load_accidents()
 
 def save_accidents(accidents):
-    validate_persistence_mode()
-    ensure_exports_dir()
-
-    if os.path.exists(ACCIDENTS_FILE):
-        shutil.copy2(ACCIDENTS_FILE, ACCIDENTS_BAK_FILE)
-        secure_file_permissions(ACCIDENTS_BAK_FILE)
-
-    tmp_file = f'{ACCIDENTS_FILE}.tmp'
-    with open(tmp_file, 'w', encoding='utf-8') as f:
-        payload = _serialize_accidents_payload(accidents)
-        json.dump(payload, f, ensure_ascii=False, indent=2)
-        f.flush()
-        os.fsync(f.fileno())
-
-    os.replace(tmp_file, ACCIDENTS_FILE)
-    secure_file_permissions(ACCIDENTS_FILE)
+    normalized = [_normalize_accident_record(item) for item in accidents if isinstance(item, dict)]
+    _local_save_accidents(normalized)
 
 
 def no_cache_response(response):
@@ -743,9 +965,17 @@ def index():
 
 @app.route('/health')
 def health():
-    persistence_ok = (not REQUIRE_PERSISTENT_STORAGE) or DATA_DIR_PERSISTENT
+    persistence_ok = supabase_enabled() or (not REQUIRE_PERSISTENT_STORAGE) or DATA_DIR_PERSISTENT
+    supabase_diag = get_supabase_diagnostics()
     payload = {
         'status': 'healthy' if persistence_ok else 'degraded',
+        'storage': {
+            'mode': storage_mode_label(),
+            'supabaseConfigured': supabase_diag['configured'],
+            'supabaseEnabled': supabase_enabled(),
+            'supabaseHealthy': supabase_diag['healthy'],
+            'supabaseTable': SUPABASE_TABLE if supabase_configured() else ''
+        },
         'persistence': {
             'dataDir': DATA_DIR,
             'isPersistent': DATA_DIR_PERSISTENT,
@@ -880,6 +1110,20 @@ def admin_backup_now():
         return jsonify({'success': False, 'backup': result}), 502
     return jsonify({'success': True, 'backup': result})
 
+
+@app.route('/api/admin/supabase-status', methods=['GET'])
+def admin_supabase_status():
+    if not is_admin_request():
+        return require_admin_response()
+
+    diagnostics = get_supabase_diagnostics()
+    http_status = 200 if diagnostics['healthy'] or not diagnostics['configured'] else 503
+    return jsonify({
+        'success': diagnostics['healthy'],
+        'storageMode': storage_mode_label(),
+        'diagnostics': diagnostics,
+    }), http_status
+
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
     try:
@@ -955,9 +1199,12 @@ def add_accident():
             'photoCount': len(photos)
         }
 
-        # Salvar acidente
+        if supabase_enabled():
+            _supabase_insert_accident(accident)
+
         accidents = load_accidents()
-        accidents.append(accident)
+        if not supabase_enabled():
+            accidents.append(accident)
         save_accidents(accidents)
         ensure_scheduled_daily_exports(accidents)
         generate_all_exports(accidents)
@@ -976,6 +1223,7 @@ def delete_accident(accident_id):
     }), 403
 
 validate_persistence_mode()
+bootstrap_supabase_from_local()
 start_daily_scheduler()
 ensure_scheduled_daily_exports(load_accidents())
 
