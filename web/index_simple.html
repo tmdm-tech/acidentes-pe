@@ -1593,15 +1593,38 @@
       empty.textContent = 'Carregando registros...';
       table.hidden = true;
       try {
-        const response = await fetch('/api/accidents');
+        const response = await fetch('/api/accidents', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
         if (!response.ok) throw new Error('Falha ao carregar registros');
         const items = await response.json();
-        cacheAccidents(items);
+        if (!Array.isArray(items)) throw new Error('Resposta invalida da API');
 
-        if (!Array.isArray(items) || items.length === 0) {
-          empty.textContent = 'Nenhum acidente registrado ainda.';
-          table.hidden = true;
-          setRenderedItems([]);
+        // Mantem o ultimo snapshot local para evitar sumico visual em respostas vazias inesperadas.
+        if (items.length > 0) {
+          cacheAccidents(items);
+        }
+
+        if (items.length === 0) {
+          const cached = getCachedAccidents();
+          const pending = getOfflineQueue();
+          const offlineItems = pending.map((item) => ({
+            ...item,
+            dataHora: item.dataHora || 'Pendente offline',
+            id: item.localId,
+            _offline: true
+          }));
+          const snapshot = [...offlineItems, ...cached];
+
+          if (snapshot.length > 0) {
+            empty.textContent = 'Mantendo ultimo snapshot local dos registros.';
+            setRenderedItems(snapshot.slice().reverse());
+          } else {
+            empty.textContent = 'Nenhum acidente registrado ainda.';
+            table.hidden = true;
+            setRenderedItems([]);
+          }
           return;
         }
 

@@ -1003,7 +1003,7 @@ def serve_static(filename):
 def get_accidents():
     accidents = load_accidents()
     ensure_scheduled_daily_exports(accidents)
-    return jsonify(accidents)
+    return no_cache_response(jsonify(accidents))
 
 
 @app.route('/api/exports', methods=['GET'])
