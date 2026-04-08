@@ -11,6 +11,7 @@ import base64
 import shutil
 import hmac
 import importlib
+import re
 from queue import Queue, Empty
 from zoneinfo import ZoneInfo
 from urllib import request as urllib_request
@@ -505,14 +506,17 @@ def _supabase_fetch_all_accidents():
     offset = 0
 
     while True:
-        response = (
+        query = (
             SUPABASE_CLIENT
             .table(SUPABASE_TABLE)
             .select('*')
-            .order('created_at', desc=False)
-            .range(offset, offset + SUPABASE_PAGE_SIZE - 1)
-            .execute()
         )
+        try:
+            response = query.order('created_at', desc=False).range(offset, offset + SUPABASE_PAGE_SIZE - 1).execute()
+        except Exception as exc:
+            if 'created_at' not in str(exc):
+                raise
+            response = query.range(offset, offset + SUPABASE_PAGE_SIZE - 1).execute()
         rows = response.data or []
         records.extend(_accident_from_supabase_record(row) for row in rows if isinstance(row, dict))
 
@@ -523,9 +527,51 @@ def _supabase_fetch_all_accidents():
     return records
 
 
+def _extract_missing_column_name(exc):
+    message = str(exc or '')
+    patterns = [
+        r"Could not find the '([^']+)' column",
+        r'column\s+"?([a-zA-Z0-9_]+)"?\s+does not exist',
+        r"Could not find the field '([^']+)'",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, message, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return ''
+
+
+def _supabase_upsert_resilient(payload):
+    items = payload if isinstance(payload, list) else [payload]
+    sanitized_items = [dict(item) for item in items]
+    removed_columns = []
+
+    while True:
+        try:
+            SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(sanitized_items, on_conflict='id').execute()
+            return {'removedColumns': removed_columns}
+        except Exception as exc:
+            missing_column = _extract_missing_column_name(exc)
+            if not missing_column:
+                raise
+
+            removed_any = False
+            for item in sanitized_items:
+                if missing_column in item:
+                    item.pop(missing_column, None)
+                    removed_any = True
+
+            if not removed_any:
+                raise
+
+            if missing_column not in removed_columns:
+                removed_columns.append(missing_column)
+            print(f'[WARN] Coluna ausente no Supabase ignorada no upsert: {missing_column}')
+
+
 def _supabase_insert_accident(accident):
     payload = _supabase_record_from_accident(accident)
-    SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(payload, on_conflict='id').execute()
+    return _supabase_upsert_resilient(payload)
 
 
 def sync_local_records_to_supabase(local_records=None, supabase_records=None, force=False):
@@ -552,9 +598,9 @@ def sync_local_records_to_supabase(local_records=None, supabase_records=None, fo
         return {'enabled': True, 'synced': 0, 'pending': 0}
 
     payload = [_supabase_record_from_accident(item) for item in pending]
-    SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(payload, on_conflict='id').execute()
+    upsert_info = _supabase_upsert_resilient(payload)
     print(f'[INFO] Sincronizacao local->Supabase: {len(payload)} registro(s) enviados.')
-    return {'enabled': True, 'synced': len(payload), 'pending': len(pending)}
+    return {'enabled': True, 'synced': len(payload), 'pending': len(pending), **upsert_info}
 
 
 def bootstrap_supabase_from_local():
@@ -1460,9 +1506,11 @@ def add_accident():
         supabase_warning = ''
         supabase_warning_excerpt = ''
         supabase_warning_type = ''
+        supabase_removed_columns = []
         if supabase_enabled():
             try:
-                _supabase_insert_accident(accident)
+                upsert_info = _supabase_insert_accident(accident)
+                supabase_removed_columns = upsert_info.get('removedColumns', [])
             except Exception as exc:
                 supabase_warning = str(exc)
                 supabase_warning_excerpt = _safe_error_excerpt(exc)
@@ -1483,6 +1531,10 @@ def add_accident():
             response['warning'] = 'Registro salvo localmente; sincronizacao com Supabase pendente.'
             response['warningType'] = supabase_warning_type or 'SupabaseInsertError'
             response['warningDetail'] = supabase_warning_excerpt
+        elif supabase_removed_columns:
+            response['warning'] = 'Registro enviado ao Supabase com compatibilidade para tabela antiga.'
+            response['warningType'] = 'SupabaseSchemaCompatibility'
+            response['warningDetail'] = 'Colunas ausentes ignoradas: ' + ', '.join(supabase_removed_columns)
 
         publish_realtime_event('accident-created', {
             'id': accident['id'],
