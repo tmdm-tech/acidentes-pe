@@ -418,6 +418,20 @@
       gap: 8px 12px;
     }
 
+    .choice-grid.vehicles-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .choice-grid.victims-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .choice-scroll {
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
     .choice-option {
       display: flex;
       gap: 8px;
@@ -428,6 +442,23 @@
 
     .choice-option input {
       margin-top: 3px;
+    }
+
+    @media (max-width: 1100px) {
+      .choice-grid.vehicles-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .choice-grid.vehicles-grid,
+      .choice-grid.victims-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .choice-scroll {
+        max-height: 260px;
+      }
     }
 
     .preview-grid {
@@ -764,7 +795,7 @@
             <fieldset class="choice-group" id="veiculoUsuarioGroup">
               <legend>Veículo/Usuário</legend>
               <span class="choice-help">Marque uma ou mais opções.</span>
-              <div class="choice-grid">
+              <div class="choice-grid vehicles-grid choice-scroll">
                 <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="A Pé">A Pé</label>
                 <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel">Automóvel</label>
                 <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel por aplicativo">Automóvel por aplicativo</label>
@@ -795,7 +826,7 @@
             <fieldset class="choice-group" id="quantidadeVitimasGroup">
               <legend>Perfil das vítimas</legend>
               <span class="choice-help">Marque uma ou mais opções.</span>
-              <div class="choice-grid">
+              <div class="choice-grid victims-grid">
                 <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima sem gravidade">1 vítima sem gravidade</label>
                 <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima com gravidade">1 vítima com gravidade</label>
                 <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais sem gravidade">2 vítimas ou mais sem gravidade</label>
