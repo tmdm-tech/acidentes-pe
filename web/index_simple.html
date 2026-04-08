@@ -831,7 +831,7 @@
         <button type="button" class="secondary" id="btn-admin-login">Entrar como administrador</button>
         <button type="button" class="secondary" id="btn-admin-logout" hidden>Sair do modo admin</button>
         <button type="button" class="secondary" id="btn-admin-backup" hidden>Backup privado (GitHub)</button>
-        <button type="button" class="secondary" id="btn-admin-supabase-sheets" hidden>Abrir planilhas no Supabase</button>
+        <button type="button" class="secondary" id="btn-admin-supabase-sheets" hidden>Abrir tabela acidentes no Supabase</button>
       </div>
       <div class="export-bar" id="export-bar" hidden>
         <button type="button" class="secondary" id="btn-download-daily" hidden>Baixar planilha diaria</button>
@@ -1164,7 +1164,7 @@
         }
 
         window.open(body.url, '_blank', 'noopener,noreferrer');
-        setStatus('Abrindo planilhas no Supabase...', 'ok');
+        setStatus('Abrindo o painel correto do projeto no Supabase, diretamente na tabela acidentes.', 'ok');
       } catch (err) {
         setStatus('Falha ao abrir planilhas no Supabase: ' + err.message, 'error');
       }
