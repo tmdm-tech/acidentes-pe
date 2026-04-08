@@ -148,6 +148,9 @@ SUPABASE_BOOTSTRAP_LOCAL = _as_bool_env('SUPABASE_BOOTSTRAP_LOCAL', default=True
 SUPABASE_PAGE_SIZE = 1000
 REALTIME_SUBSCRIBERS = []
 REALTIME_SUBSCRIBERS_LOCK = threading.Lock()
+LOCAL_SUPABASE_SYNC_INTERVAL_SECONDS = 30
+LAST_LOCAL_SUPABASE_SYNC_AT = 0.0
+LOCAL_SUPABASE_SYNC_LOCK = threading.Lock()
 
 if DATA_ENCRYPTION_ENABLED and Fernet is None:
     print('[WARN] DATA_ENCRYPTION_KEY definida, mas cryptography nao esta disponivel. Criptografia desativada.')
@@ -523,6 +526,35 @@ def _supabase_fetch_all_accidents():
 def _supabase_insert_accident(accident):
     payload = _supabase_record_from_accident(accident)
     SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(payload, on_conflict='id').execute()
+
+
+def sync_local_records_to_supabase(local_records=None, supabase_records=None, force=False):
+    if not supabase_enabled():
+        return {'enabled': False, 'synced': 0, 'pending': 0}
+
+    global LAST_LOCAL_SUPABASE_SYNC_AT
+    now_ts = time.time()
+
+    with LOCAL_SUPABASE_SYNC_LOCK:
+        if not force and (now_ts - LAST_LOCAL_SUPABASE_SYNC_AT) < LOCAL_SUPABASE_SYNC_INTERVAL_SECONDS:
+            return {'enabled': True, 'synced': 0, 'pending': 0, 'skipped': 'throttled'}
+        LAST_LOCAL_SUPABASE_SYNC_AT = now_ts
+
+    local_items = local_records if local_records is not None else _local_load_accidents()
+    if not local_items:
+        return {'enabled': True, 'synced': 0, 'pending': 0}
+
+    remote_items = supabase_records if supabase_records is not None else _supabase_fetch_all_accidents()
+    remote_ids = {str(item.get('id', '')).strip() for item in remote_items if str(item.get('id', '')).strip()}
+
+    pending = [item for item in local_items if str(item.get('id', '')).strip() and str(item.get('id', '')).strip() not in remote_ids]
+    if not pending:
+        return {'enabled': True, 'synced': 0, 'pending': 0}
+
+    payload = [_supabase_record_from_accident(item) for item in pending]
+    SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(payload, on_conflict='id').execute()
+    print(f'[INFO] Sincronizacao local->Supabase: {len(payload)} registro(s) enviados.')
+    return {'enabled': True, 'synced': len(payload), 'pending': len(pending)}
 
 
 def bootstrap_supabase_from_local():
@@ -1059,6 +1091,10 @@ def load_accidents():
     if supabase_enabled():
         try:
             supabase_records = _supabase_fetch_all_accidents()
+            try:
+                sync_local_records_to_supabase(local_records=local_records, supabase_records=supabase_records)
+            except Exception as sync_exc:
+                print(f'[WARN] Falha ao sincronizar registros locais para Supabase: {sync_exc}')
             merged_records = _sort_accidents(_merge_accident_records(supabase_records, local_records))
 
             # Mantem cache local alinhado para evitar sumico visual em instabilidades.
@@ -1467,6 +1503,11 @@ def delete_accident(accident_id):
 
 validate_persistence_mode()
 bootstrap_supabase_from_local()
+if supabase_enabled():
+    try:
+        sync_local_records_to_supabase(force=True)
+    except Exception as startup_sync_exc:
+        print(f'[WARN] Falha na sincronizacao inicial local->Supabase: {startup_sync_exc}')
 start_daily_scheduler()
 ensure_scheduled_daily_exports(load_accidents())
 

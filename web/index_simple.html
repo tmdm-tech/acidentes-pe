@@ -1017,8 +1017,6 @@
     const APP_INSTALLED_KEY = 'app_installed_v1';
     const SW_UPDATE_RELOAD_KEY = 'sw_update_reload_once_v1';
     const STREET_ZOOM = 16;
-    const AUTO_REFRESH_MS = 15000;
-    const AUTO_REFRESH_FAST_MS = 5000;
     const STREAM_RETRY_MS = 3000;
     let autoRefreshInterval = null;
     let accidentsStream = null;
@@ -1048,7 +1046,7 @@
         return;
       }
 
-      streamStatus.textContent = 'Tempo real: reconectando (fallback 5s)';
+      streamStatus.textContent = 'Tempo real: reconectando';
       streamStatus.className = 'stream-status connecting';
     }
 
@@ -1139,10 +1137,7 @@
 
     function startAutomaticUpdates() {
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-      autoRefreshInterval = setInterval(() => {
-        if (document.hidden) return;
-        refreshDataSilently();
-      }, AUTO_REFRESH_FAST_MS);
+      autoRefreshInterval = null;
     }
 
     function adminHeaders() {
