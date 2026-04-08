@@ -123,6 +123,7 @@ GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
 GITHUB_BACKUP_BRANCH = os.environ.get('GITHUB_BACKUP_BRANCH', 'main')
 GITHUB_BACKUP_PATH = os.environ.get('GITHUB_BACKUP_PATH', 'observa_backup')
 BACKUP_STATE_FILE = os.path.join(DATA_DIR, 'backup_state.json')
+SUPABASE_SPREADSHEETS_URL = os.environ.get('SUPABASE_SPREADSHEETS_URL', '').strip()
 DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
@@ -1166,6 +1167,23 @@ def admin_backup_now():
     if result.get('enabled') and not result.get('ok', True):
         return jsonify({'success': False, 'backup': result}), 502
     return jsonify({'success': True, 'backup': result})
+
+
+@app.route('/api/admin/spreadsheets-link', methods=['GET'])
+def admin_spreadsheets_link():
+    if not is_admin_request():
+        return require_admin_response()
+
+    if not SUPABASE_SPREADSHEETS_URL:
+        return jsonify({
+            'success': False,
+            'error': 'SUPABASE_SPREADSHEETS_URL nao configurada no servidor'
+        }), 503
+
+    return jsonify({
+        'success': True,
+        'url': SUPABASE_SPREADSHEETS_URL
+    })
 
 
 @app.route('/api/admin/supabase-status', methods=['GET'])

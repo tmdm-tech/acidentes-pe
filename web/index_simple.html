@@ -799,6 +799,7 @@
         <button type="button" class="secondary" id="btn-admin-login">Entrar como administrador</button>
         <button type="button" class="secondary" id="btn-admin-logout" hidden>Sair do modo admin</button>
         <button type="button" class="secondary" id="btn-admin-backup" hidden>Backup privado (GitHub)</button>
+        <button type="button" class="secondary" id="btn-admin-supabase-sheets" hidden>Abrir planilhas no Supabase</button>
       </div>
       <div class="export-bar" id="export-bar" hidden>
         <button type="button" class="secondary" id="btn-download-daily" hidden>Baixar planilha diaria</button>
@@ -857,6 +858,7 @@
     const btnAdminLogin = document.getElementById('btn-admin-login');
     const btnAdminLogout = document.getElementById('btn-admin-logout');
     const btnAdminBackup = document.getElementById('btn-admin-backup');
+    const btnAdminSupabaseSheets = document.getElementById('btn-admin-supabase-sheets');
     const exportBar = document.getElementById('export-bar');
     const btnDownloadDaily = document.getElementById('btn-download-daily');
     const btnDownloadDailyMap = document.getElementById('btn-download-daily-map');
@@ -988,6 +990,7 @@
       btnDownloadMonthly.hidden = !enabled;
       btnAdminLogout.hidden = !enabled;
       btnAdminBackup.hidden = !enabled;
+      btnAdminSupabaseSheets.hidden = !enabled;
       btnAdminLogin.hidden = enabled;
     }
 
@@ -1048,6 +1051,23 @@
         setStatus('Backup privado enviado com sucesso.', 'ok');
       } catch (err) {
         setStatus('Falha no backup privado: ' + err.message, 'error');
+      }
+    }
+
+    async function openSupabaseSpreadsheets() {
+      try {
+        const response = await fetch('/api/admin/spreadsheets-link', {
+          headers: { ...adminHeaders() }
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success || !body.url) {
+          throw new Error(body.error || 'Link das planilhas nao disponivel');
+        }
+
+        window.open(body.url, '_blank', 'noopener,noreferrer');
+        setStatus('Abrindo planilhas no Supabase...', 'ok');
+      } catch (err) {
+        setStatus('Falha ao abrir planilhas no Supabase: ' + err.message, 'error');
       }
     }
 
@@ -1665,6 +1685,7 @@
     btnAdminLogin.addEventListener('click', promptAdminLogin);
     btnAdminLogout.addEventListener('click', logoutAdmin);
     btnAdminBackup.addEventListener('click', triggerPrivateBackup);
+    btnAdminSupabaseSheets.addEventListener('click', openSupabaseSpreadsheets);
     btnSync.addEventListener('click', syncOfflineReports);
     btnDownloadDaily.addEventListener('click', () => downloadSpreadsheet('daily'));
     btnDownloadDailyMap.addEventListener('click', downloadDailyMap);
