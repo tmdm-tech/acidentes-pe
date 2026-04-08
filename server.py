@@ -294,6 +294,23 @@ def _normalize_accident_record(item):
     }
 
 
+def _merge_accident_records(primary, secondary):
+    """Merge two accident lists by id, preserving primary precedence."""
+    merged = []
+    seen = set()
+
+    for source in (primary or [], secondary or []):
+        for item in source:
+            normalized = _normalize_accident_record(item)
+            item_id = normalized.get('id', '').strip()
+            if not item_id or item_id in seen:
+                continue
+            seen.add(item_id)
+            merged.append(normalized)
+
+    return merged
+
+
 def _local_load_accidents():
     ensure_exports_dir()
     if os.path.exists(ACCIDENTS_FILE):
@@ -410,7 +427,7 @@ def _supabase_fetch_all_accidents():
 
 def _supabase_insert_accident(accident):
     payload = _supabase_record_from_accident(accident)
-    SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+    SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(payload, on_conflict='id').execute()
 
 
 def bootstrap_supabase_from_local():
@@ -934,12 +951,21 @@ def generate_all_exports(accidents):
     }
 
 def load_accidents():
+    local_records = _local_load_accidents()
+
     if supabase_enabled():
         try:
-            return _supabase_fetch_all_accidents()
+            supabase_records = _supabase_fetch_all_accidents()
+            merged_records = _merge_accident_records(supabase_records, local_records)
+
+            # Mantem cache local alinhado para evitar sumico visual em instabilidades.
+            if merged_records:
+                _local_save_accidents(merged_records)
+
+            return merged_records
         except Exception as exc:
             print(f'[WARN] Falha ao ler Supabase; usando fallback local. Motivo: {exc}')
-    return _local_load_accidents()
+    return local_records
 
 def save_accidents(accidents):
     normalized = [_normalize_accident_record(item) for item in accidents if isinstance(item, dict)]
@@ -1207,18 +1233,33 @@ def add_accident():
             'photoCount': len(photos)
         }
 
+        # Espelho local e persistencia imediata para nao perder visibilidade no app.
+        local_records = _local_load_accidents()
+        local_records = _merge_accident_records(local_records, [accident])
+        save_accidents(local_records)
+
+        supabase_warning = ''
         if supabase_enabled():
-            _supabase_insert_accident(accident)
+            try:
+                _supabase_insert_accident(accident)
+            except Exception as exc:
+                supabase_warning = str(exc)
+                print(f'[WARN] Falha ao inserir no Supabase; registro mantido no espelho local. Motivo: {exc}')
 
         accidents = load_accidents()
-        if not supabase_enabled():
-            accidents.append(accident)
-        save_accidents(accidents)
         ensure_scheduled_daily_exports(accidents)
         generate_all_exports(accidents)
         backup_accidents_to_github(accidents)
 
-        return jsonify({'success': True, 'message': 'Acidente reportado com sucesso!', 'id': accident['id']})
+        response = {
+            'success': True,
+            'message': 'Acidente reportado com sucesso!',
+            'id': accident['id']
+        }
+        if supabase_warning:
+            response['warning'] = 'Registro salvo localmente; sincronizacao com Supabase pendente.'
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
