@@ -135,7 +135,10 @@ GITHUB_BACKUP_TOKEN = os.environ.get('GITHUB_BACKUP_TOKEN', '')
 GITHUB_BACKUP_BRANCH = os.environ.get('GITHUB_BACKUP_BRANCH', 'main')
 GITHUB_BACKUP_PATH = os.environ.get('GITHUB_BACKUP_PATH', 'observa_backup')
 BACKUP_STATE_FILE = os.path.join(DATA_DIR, 'backup_state.json')
-SUPABASE_SPREADSHEETS_URL = os.environ.get('SUPABASE_SPREADSHEETS_URL', '').strip()
+SUPABASE_SPREADSHEETS_URL = os.environ.get(
+    'SUPABASE_SPREADSHEETS_URL',
+    'https://supabase.com/dashboard/project/izdubenyjyxhtooaaxzv/editor/17552?schema=public'
+).strip()
 DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
