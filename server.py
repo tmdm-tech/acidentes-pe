@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, Response, stream_with_context
 import json
 import os
 import csv
@@ -11,6 +11,7 @@ import base64
 import shutil
 import hmac
 import importlib
+from queue import Queue, Empty
 from zoneinfo import ZoneInfo
 from urllib import request as urllib_request
 from urllib import error as urllib_error
@@ -142,6 +143,8 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '').stri
 SUPABASE_TABLE = os.environ.get('SUPABASE_TABLE', 'acidentes').strip() or 'acidentes'
 SUPABASE_BOOTSTRAP_LOCAL = _as_bool_env('SUPABASE_BOOTSTRAP_LOCAL', default=True)
 SUPABASE_PAGE_SIZE = 1000
+REALTIME_SUBSCRIBERS = []
+REALTIME_SUBSCRIBERS_LOCK = threading.Lock()
 
 if DATA_ENCRYPTION_ENABLED and Fernet is None:
     print('[WARN] DATA_ENCRYPTION_KEY definida, mas cryptography nao esta disponivel. Criptografia desativada.')
@@ -323,6 +326,40 @@ def _merge_accident_records(primary, secondary):
             merged.append(normalized)
 
     return merged
+
+
+def _accident_sort_key(item):
+    try:
+        return parse_accident_datetime(item)
+    except Exception:
+        pass
+
+    try:
+        return datetime.fromtimestamp(int(str(item.get('id', '0')).strip()) / 1000.0)
+    except Exception:
+        return datetime.min
+
+
+def _sort_accidents(records):
+    return sorted(records or [], key=_accident_sort_key)
+
+
+def publish_realtime_event(event_name, payload):
+    message = json.dumps({
+        'event': event_name,
+        'payload': payload,
+        'ts': now_local_datetime().strftime('%d/%m/%Y %H:%M:%S')
+    }, ensure_ascii=False)
+
+    with REALTIME_SUBSCRIBERS_LOCK:
+        subscribers = list(REALTIME_SUBSCRIBERS)
+
+    for sub_queue in subscribers:
+        try:
+            sub_queue.put_nowait(message)
+        except Exception:
+            # Falha em assinante isolado nao deve afetar os demais.
+            pass
 
 
 def _safe_error_excerpt(exc):
@@ -990,7 +1027,7 @@ def load_accidents():
     if supabase_enabled():
         try:
             supabase_records = _supabase_fetch_all_accidents()
-            merged_records = _merge_accident_records(supabase_records, local_records)
+            merged_records = _sort_accidents(_merge_accident_records(supabase_records, local_records))
 
             # Mantem cache local alinhado para evitar sumico visual em instabilidades.
             if merged_records:
@@ -999,7 +1036,7 @@ def load_accidents():
             return merged_records
         except Exception as exc:
             print(f'[WARN] Falha ao ler Supabase; usando fallback local. Motivo: {exc}')
-    return local_records
+    return _sort_accidents(local_records)
 
 def save_accidents(accidents):
     normalized = [_normalize_accident_record(item) for item in accidents if isinstance(item, dict)]
@@ -1073,6 +1110,34 @@ def get_accidents():
     accidents = load_accidents()
     ensure_scheduled_daily_exports(accidents)
     return no_cache_response(jsonify(accidents))
+
+
+@app.route('/api/accidents/stream', methods=['GET'])
+def stream_accidents():
+    @stream_with_context
+    def event_stream():
+        subscriber_queue = Queue(maxsize=100)
+        with REALTIME_SUBSCRIBERS_LOCK:
+            REALTIME_SUBSCRIBERS.append(subscriber_queue)
+
+        yield 'event: ready\ndata: {"event":"ready"}\n\n'
+
+        try:
+            while True:
+                try:
+                    payload = subscriber_queue.get(timeout=20)
+                    yield f'event: update\ndata: {payload}\n\n'
+                except Empty:
+                    yield ': keepalive\n\n'
+        finally:
+            with REALTIME_SUBSCRIBERS_LOCK:
+                if subscriber_queue in REALTIME_SUBSCRIBERS:
+                    REALTIME_SUBSCRIBERS.remove(subscriber_queue)
+
+    response = Response(event_stream(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
 
 
 @app.route('/api/exports', methods=['GET'])
@@ -1316,6 +1381,11 @@ def add_accident():
             response['warning'] = 'Registro salvo localmente; sincronizacao com Supabase pendente.'
             response['warningType'] = supabase_warning_type or 'SupabaseInsertError'
             response['warningDetail'] = supabase_warning_excerpt
+
+        publish_realtime_event('accident-created', {
+            'id': accident['id'],
+            'dataHora': accident['dataHora']
+        })
 
         return jsonify(response)
 

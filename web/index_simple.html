@@ -924,7 +924,13 @@
     const SW_UPDATE_RELOAD_KEY = 'sw_update_reload_once_v1';
     const STREET_ZOOM = 16;
     const AUTO_REFRESH_MS = 15000;
+    const AUTO_REFRESH_FAST_MS = 5000;
+    const STREAM_RETRY_MS = 3000;
     let autoRefreshInterval = null;
+    let accidentsStream = null;
+    let streamReconnectTimer = null;
+    let streamConnected = false;
+    let pendingRealtimeReload = false;
     let adminAccessKey = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
 
     function showUpdateBanner(message, showAction = true) {
@@ -963,12 +969,47 @@
       await loadAccidents();
     }
 
+    function scheduleRealtimeReload() {
+      if (pendingRealtimeReload) return;
+      pendingRealtimeReload = true;
+      setTimeout(async () => {
+        pendingRealtimeReload = false;
+        await refreshDataSilently();
+      }, 250);
+    }
+
+    function connectRealtimeStream() {
+      if (!window.EventSource) return;
+      if (accidentsStream) accidentsStream.close();
+
+      accidentsStream = new EventSource('/api/accidents/stream');
+
+      accidentsStream.addEventListener('ready', () => {
+        streamConnected = true;
+      });
+
+      accidentsStream.addEventListener('update', () => {
+        streamConnected = true;
+        scheduleRealtimeReload();
+      });
+
+      accidentsStream.onerror = () => {
+        streamConnected = false;
+        if (accidentsStream) {
+          accidentsStream.close();
+          accidentsStream = null;
+        }
+        if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
+        streamReconnectTimer = setTimeout(connectRealtimeStream, STREAM_RETRY_MS);
+      };
+    }
+
     function startAutomaticUpdates() {
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
       autoRefreshInterval = setInterval(() => {
         if (document.hidden) return;
         refreshDataSilently();
-      }, AUTO_REFRESH_MS);
+      }, AUTO_REFRESH_FAST_MS);
     }
 
     function adminHeaders() {
@@ -1983,7 +2024,12 @@
         encodedPhotos = [];
         renderPreview();
         resetStopwatch();
-        setStatus('Sinistro salvo com sucesso.', 'ok');
+        if (body.warning) {
+          const detail = body.warningDetail ? ` Detalhe: ${body.warningDetail}` : '';
+          setStatus(body.warning + detail, 'warn');
+        } else {
+          setStatus('Sinistro salvo com sucesso.', 'ok');
+        }
         loadAccidents();
       } catch (err) {
         const queue = getOfflineQueue();
@@ -2016,6 +2062,7 @@
     setPointOnMap(-8.050000, -34.900000, true);
     startStopwatch();
     renderQuickLocalData();
+    connectRealtimeStream();
 
     const deferMapInit = () => {
       ensureLeafletMapReady().then((ok) => {
