@@ -11,6 +11,7 @@ import base64
 import shutil
 import hmac
 import importlib
+from zoneinfo import ZoneInfo
 from urllib import request as urllib_request
 from urllib import error as urllib_error
 
@@ -58,8 +59,18 @@ load_dotenv_file()
 
 WEB_DIR = 'web'
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
+APP_TIMEZONE = os.environ.get('APP_TIMEZONE', 'America/Recife').strip() or 'America/Recife'
 MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000
+
+try:
+    APP_TZ = ZoneInfo(APP_TIMEZONE)
+except Exception:
+    APP_TZ = ZoneInfo('America/Recife')
+
+
+def now_local_datetime():
+    return datetime.now(APP_TZ)
 
 
 def _as_bool_env(name, default=False):
@@ -378,7 +389,7 @@ def _supabase_record_from_accident(accident):
     try:
         created_at = parse_accident_datetime(normalized).isoformat()
     except Exception:
-        created_at = datetime.now().isoformat()
+        created_at = now_local_datetime().isoformat()
 
     return {
         'id': normalized['id'],
@@ -569,7 +580,7 @@ def backup_accidents_to_github(accidents):
     if not github_backup_enabled():
         return {'enabled': False, 'message': 'Backup GitHub nao configurado'}
 
-    now = datetime.now()
+    now = now_local_datetime()
     day_label = now.strftime('%Y-%m-%d')
     base_path = GITHUB_BACKUP_PATH.strip('/').strip()
     latest_path = f'{base_path}/accidents_latest.json' if base_path else 'accidents_latest.json'
@@ -636,7 +647,7 @@ def parse_accident_datetime(item):
     try:
         return datetime.strptime(text, '%d/%m/%Y %H:%M:%S')
     except (TypeError, ValueError):
-        return datetime.now()
+        return now_local_datetime()
 
 
 def period_label(dt, period):
@@ -836,7 +847,7 @@ def _generation_cutoff(now_dt):
 def ensure_scheduled_daily_exports(accidents):
     state = read_export_state()
     last_label = state.get('lastGeneratedFor', '')
-    now_dt = datetime.now()
+    now_dt = now_local_datetime()
     cutoff = _generation_cutoff(now_dt)
 
     try:
@@ -893,7 +904,7 @@ def start_daily_scheduler():
 
 def write_export_csv(period, accidents):
     ensure_exports_dir()
-    now = datetime.now()
+    now = now_local_datetime()
     ts = now.strftime('%Y%m%d_%H%M%S')
     period_slug = {
         'daily': 'diario',
@@ -1256,7 +1267,7 @@ def add_accident():
 
         # Criar acidente
         accident = {
-            'id': str(int(datetime.now().timestamp() * 1000)),
+            'id': str(int(now_local_datetime().timestamp() * 1000)),
             'municipioNotificacao': data['municipioNotificacao'].strip(),
             'nomeNotificante': data['nomeNotificante'].strip(),
             'endereco': data['endereco'].strip(),
@@ -1270,7 +1281,7 @@ def add_accident():
             'descricao': str(data.get('descricao', '')).strip(),
             'fotos': photos,
             'tempoRegistroSegundos': elapsed_seconds,
-            'dataHora': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'dataHora': now_local_datetime().strftime('%d/%m/%Y %H:%M:%S'),
             'photoCount': len(photos)
         }
 
