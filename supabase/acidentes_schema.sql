@@ -4,6 +4,8 @@ create table if not exists public.acidentes (
   nome_notificante text not null,
   endereco text not null,
   veiculo_usuario text not null,
+  registro_no_local_sinistro text,
+  registro_fora_local_descricao text,
   sinistro_com_vitimas text not null,
   quantidade_vitimas text,
   sinistro_vitimas text,

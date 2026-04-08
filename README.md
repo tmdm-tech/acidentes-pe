@@ -246,6 +246,8 @@ Esse endpoint e o mais direto para descobrir se o problema esta:
 
 Antes do primeiro deploy com Supabase, crie a tabela executando o SQL do arquivo `supabase/acidentes_schema.sql` no SQL Editor do Supabase.
 
+Se a tabela `acidentes` ja existe e voce precisa adicionar os campos mais novos sem recriar a tabela, execute tambem o SQL de migracao em `supabase/acidentes_migration_add_context_fields.sql`.
+
 Recursos já ativos:
 
 - Geração diária automática às 08:00 do dia seguinte
