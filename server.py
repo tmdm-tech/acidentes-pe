@@ -313,6 +313,26 @@ def _merge_accident_records(primary, secondary):
     return merged
 
 
+def _safe_error_excerpt(exc):
+    """Return a short non-sensitive error excerpt for API responses/logs."""
+    raw = str(exc or '').replace('\n', ' ').replace('\r', ' ').strip()
+    if not raw:
+        return 'Erro nao especificado'
+
+    lowered = raw.lower()
+    sensitive_markers = [
+        'service_role',
+        'authorization',
+        'apikey',
+        'bearer',
+        'token',
+    ]
+    if any(marker in lowered for marker in sensitive_markers):
+        return 'Erro de autenticacao/permissao no Supabase'
+
+    return raw[:200]
+
+
 def _local_load_accidents():
     ensure_exports_dir()
     if os.path.exists(ACCIDENTS_FILE):
@@ -1242,11 +1262,15 @@ def add_accident():
         save_accidents(local_records)
 
         supabase_warning = ''
+        supabase_warning_excerpt = ''
+        supabase_warning_type = ''
         if supabase_enabled():
             try:
                 _supabase_insert_accident(accident)
             except Exception as exc:
                 supabase_warning = str(exc)
+                supabase_warning_excerpt = _safe_error_excerpt(exc)
+                supabase_warning_type = type(exc).__name__
                 print(f'[WARN] Falha ao inserir no Supabase; registro mantido no espelho local. Motivo: {exc}')
 
         accidents = load_accidents()
@@ -1261,6 +1285,8 @@ def add_accident():
         }
         if supabase_warning:
             response['warning'] = 'Registro salvo localmente; sincronizacao com Supabase pendente.'
+            response['warningType'] = supabase_warning_type or 'SupabaseInsertError'
+            response['warningDetail'] = supabase_warning_excerpt
 
         return jsonify(response)
 
