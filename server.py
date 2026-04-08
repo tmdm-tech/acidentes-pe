@@ -965,8 +965,16 @@ def index():
 
 @app.route('/health')
 def health():
-    persistence_ok = supabase_enabled() or (not REQUIRE_PERSISTENT_STORAGE) or DATA_DIR_PERSISTENT
     supabase_diag = get_supabase_diagnostics()
+    supabase_ready = True
+    if supabase_diag['configured']:
+        supabase_ready = bool(supabase_diag['healthy'])
+
+    persistence_ok = (
+        (supabase_enabled() and supabase_ready)
+        or (not REQUIRE_PERSISTENT_STORAGE)
+        or DATA_DIR_PERSISTENT
+    )
     payload = {
         'status': 'healthy' if persistence_ok else 'degraded',
         'storage': {
