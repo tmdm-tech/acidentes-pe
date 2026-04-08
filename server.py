@@ -203,13 +203,15 @@ def get_supabase_diagnostics():
         response = (
             SUPABASE_CLIENT
             .table(SUPABASE_TABLE)
-            .select('id', count='exact')
+            .select('id')
             .limit(1)
             .execute()
         )
         diagnostics['connected'] = True
         diagnostics['tableAccessible'] = True
-        diagnostics['recordCount'] = getattr(response, 'count', None)
+        # Mantem o campo para compatibilidade de payload, sem obrigar count exato.
+        data = response.data or []
+        diagnostics['recordCount'] = len(data)
         diagnostics['healthy'] = True
     except Exception as exc:
         diagnostics['error'] = str(exc)
@@ -1008,7 +1010,8 @@ def health():
             'supabaseConfigured': supabase_diag['configured'],
             'supabaseEnabled': supabase_enabled(),
             'supabaseHealthy': supabase_diag['healthy'],
-            'supabaseTable': SUPABASE_TABLE if supabase_configured() else ''
+            'supabaseTable': SUPABASE_TABLE if supabase_configured() else '',
+            'supabaseError': supabase_diag['error'] if supabase_diag['configured'] else ''
         },
         'persistence': {
             'dataDir': DATA_DIR,
