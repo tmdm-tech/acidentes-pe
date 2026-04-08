@@ -433,15 +433,24 @@
     }
 
     .choice-option {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
       font-size: 0.92rem;
       color: #1e293b;
+      margin: 0;
     }
 
     .choice-option input {
-      margin-top: 3px;
+      margin: 3px 0 0;
+    }
+
+    .choice-option span {
+      display: block;
+      line-height: 1.25;
+      text-align: left;
+      word-break: break-word;
     }
 
     @media (max-width: 1100px) {
@@ -796,21 +805,21 @@
               <legend>Veículo/Usuário</legend>
               <span class="choice-help">Marque uma ou mais opções.</span>
               <div class="choice-grid vehicles-grid choice-scroll">
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="A Pé">A Pé</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel">Automóvel</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel por aplicativo">Automóvel por aplicativo</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta">Motocicleta</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta por aplicativo">Motocicleta por aplicativo</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta">Bicicleta</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta por aplicativo">Bicicleta por aplicativo</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ônibus/Similar">Ônibus/Similar</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo pesado">Veículo pesado</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ambulância/SAMU">Ambulância/SAMU</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Resgate">Resgate</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo de tração animal">Veículo de tração animal</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Animal montado">Animal montado</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ignorado">Ignorado</label>
-                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Outro">Outro</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="A Pé"><span>A Pé</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel"><span>Automóvel</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel por aplicativo"><span>Automóvel por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta"><span>Motocicleta</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta por aplicativo"><span>Motocicleta por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta"><span>Bicicleta</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta por aplicativo"><span>Bicicleta por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ônibus/Similar"><span>Ônibus/Similar</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo pesado"><span>Veículo pesado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ambulância/SAMU"><span>Ambulância/SAMU</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Resgate"><span>Resgate</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo de tração animal"><span>Veículo de tração animal</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Animal montado"><span>Animal montado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ignorado"><span>Ignorado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Outro"><span>Outro</span></label>
               </div>
             </fieldset>
           </div>
@@ -827,11 +836,11 @@
               <legend>Perfil das vítimas</legend>
               <span class="choice-help">Marque uma ou mais opções.</span>
               <div class="choice-grid victims-grid">
-                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima sem gravidade">1 vítima sem gravidade</label>
-                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima com gravidade">1 vítima com gravidade</label>
-                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais sem gravidade">2 vítimas ou mais sem gravidade</label>
-                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais com gravidade">2 vítimas ou mais com gravidade</label>
-                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="Vítima fatal">Vítima fatal</label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima sem gravidade"><span>1 vítima sem gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima com gravidade"><span>1 vítima com gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais sem gravidade"><span>2 vítimas ou mais sem gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais com gravidade"><span>2 vítimas ou mais com gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="Vítima fatal"><span>Vítima fatal</span></label>
               </div>
             </fieldset>
           </div>
