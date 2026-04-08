@@ -307,6 +307,8 @@ def _normalize_accident_record(item):
         'latitude': str(item.get('latitude', '')).strip(),
         'longitude': str(item.get('longitude', '')).strip(),
         'descricao': str(item.get('descricao', '')).strip(),
+        'registroNoLocalSinistro': str(item.get('registroNoLocalSinistro', '')).strip(),
+        'registroForaLocalDescricao': str(item.get('registroForaLocalDescricao', '')).strip(),
         'fotos': photos,
         'tempoRegistroSegundos': int(item.get('tempoRegistroSegundos', 0) or 0),
         'dataHora': str(item.get('dataHora', '')).strip(),
@@ -319,11 +321,28 @@ def _merge_accident_records(primary, secondary):
     merged = []
     seen = set()
 
+    def is_missing(value):
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip() == ''
+        if isinstance(value, list):
+            return len(value) == 0
+        if isinstance(value, (int, float)):
+            return value == 0
+        return False
+
     for source in (primary or [], secondary or []):
         for item in source:
             normalized = _normalize_accident_record(item)
             item_id = normalized.get('id', '').strip()
             if not item_id or item_id in seen:
+                if item_id:
+                    existing = next((record for record in merged if record.get('id') == item_id), None)
+                    if existing:
+                        for key, value in normalized.items():
+                            if is_missing(existing.get(key)) and not is_missing(value):
+                                existing[key] = value
                 continue
             seen.add(item_id)
             merged.append(normalized)
@@ -469,6 +488,8 @@ def _accident_from_supabase_record(row):
         'latitude': str(row.get('latitude', '')).strip(),
         'longitude': str(row.get('longitude', '')).strip(),
         'descricao': str(row.get('descricao', '')).strip(),
+        'registroNoLocalSinistro': str(row.get('registro_no_local_sinistro', '')).strip(),
+        'registroForaLocalDescricao': str(row.get('registro_fora_local_descricao', '')).strip(),
         'fotos': photos,
         'tempoRegistroSegundos': int(row.get('tempo_registro_segundos', 0) or 0),
         'dataHora': str(row.get('data_hora', '')).strip(),
@@ -740,6 +761,8 @@ def write_daily_csv_for_date(target_date, accidents):
         'nome_notificante',
         'endereco',
         'veiculo_usuario',
+        'registro_no_local_sinistro',
+        'registro_fora_local_descricao',
         'sinistro_com_vitimas',
         'quantidade_vitimas',
         'sinistro_vitimas',
@@ -765,6 +788,8 @@ def write_daily_csv_for_date(target_date, accidents):
                 'nome_notificante': item.get('nomeNotificante', ''),
                 'endereco': item.get('endereco', ''),
                 'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'registro_no_local_sinistro': item.get('registroNoLocalSinistro', ''),
+                'registro_fora_local_descricao': item.get('registroForaLocalDescricao', ''),
                 'sinistro_com_vitimas': item.get('sinistroComVitimas', ''),
                 'quantidade_vitimas': item.get('quantidadeVitimas', ''),
                 'sinistro_vitimas': item.get('sinistroVitimas', ''),
@@ -965,6 +990,8 @@ def write_export_csv(period, accidents):
         'nome_notificante',
         'endereco',
         'veiculo_usuario',
+        'registro_no_local_sinistro',
+        'registro_fora_local_descricao',
         'sinistro_com_vitimas',
         'quantidade_vitimas',
         'sinistro_vitimas',
@@ -991,6 +1018,8 @@ def write_export_csv(period, accidents):
                 'nome_notificante': item.get('nomeNotificante', ''),
                 'endereco': item.get('endereco', ''),
                 'veiculo_usuario': item.get('veiculoUsuario', ''),
+                'registro_no_local_sinistro': item.get('registroNoLocalSinistro', ''),
+                'registro_fora_local_descricao': item.get('registroForaLocalDescricao', ''),
                 'sinistro_com_vitimas': item.get('sinistroComVitimas', ''),
                 'quantidade_vitimas': item.get('quantidadeVitimas', ''),
                 'sinistro_vitimas': item.get('sinistroVitimas', ''),
@@ -1283,6 +1312,14 @@ def add_accident():
     try:
         data = request.get_json() or {}
 
+        def split_multi_values(raw_value):
+            if isinstance(raw_value, list):
+                return [str(item).strip() for item in raw_value if str(item).strip()]
+            text = str(raw_value or '').strip()
+            if not text:
+                return []
+            return [part.strip() for part in text.split('|') if part.strip()]
+
         # Validar dados obrigatórios
         required_fields = [
             'municipioNotificacao',
@@ -1302,9 +1339,33 @@ def add_accident():
         if sinistro_com_vitimas not in {'Sim', 'Não'}:
             return jsonify({'error': 'Campo sinistroComVitimas inválido. Use Sim ou Não.'}), 400
 
-        quantidade_vitimas = str(data.get('quantidadeVitimas', '')).strip()
-        if sinistro_com_vitimas == 'Sim' and quantidade_vitimas not in {'1', '2 ou mais', 'Vítima fatal'}:
-            return jsonify({'error': 'Quantidade de vítimas inválida.'}), 400
+        veiculo_usuario_values = split_multi_values(data.get('veiculoUsuario', ''))
+        if not veiculo_usuario_values:
+            return jsonify({'error': 'Selecione ao menos uma opção em Veículo/Usuário.'}), 400
+
+        registro_no_local_sinistro = str(data.get('registroNoLocalSinistro', '')).strip()
+        if registro_no_local_sinistro not in {'Sim', 'Não'}:
+            return jsonify({'error': 'Informe se o registro está sendo feito no local do sinistro.'}), 400
+
+        registro_fora_local_descricao = str(data.get('registroForaLocalDescricao', '')).strip()
+        if registro_no_local_sinistro == 'Não' and not registro_fora_local_descricao:
+            return jsonify({'error': 'Informe a breve descrição quando o registro não for feito no local do sinistro.'}), 400
+        if registro_no_local_sinistro == 'Sim':
+            registro_fora_local_descricao = ''
+
+        quantidade_vitimas_values = split_multi_values(data.get('quantidadeVitimas', ''))
+        allowed_victim_options = {
+            '1 vítima sem gravidade',
+            '1 vítima com gravidade',
+            '2 vítimas ou mais sem gravidade',
+            '2 vítimas ou mais com gravidade',
+            'Vítima fatal',
+        }
+        if any(value not in allowed_victim_options for value in quantidade_vitimas_values):
+            return jsonify({'error': 'Perfil de vítimas inválido.'}), 400
+        quantidade_vitimas = ' | '.join(quantidade_vitimas_values)
+        if sinistro_com_vitimas == 'Sim' and not quantidade_vitimas_values:
+            return jsonify({'error': 'Selecione pelo menos uma opção no perfil das vítimas.'}), 400
         if sinistro_com_vitimas == 'Não':
             quantidade_vitimas = ''
 
@@ -1339,14 +1400,16 @@ def add_accident():
             'municipioNotificacao': data['municipioNotificacao'].strip(),
             'nomeNotificante': data['nomeNotificante'].strip(),
             'endereco': data['endereco'].strip(),
-            'veiculoUsuario': data['veiculoUsuario'].strip(),
+            'veiculoUsuario': ' | '.join(veiculo_usuario_values),
             'sinistroComVitimas': sinistro_com_vitimas,
             'quantidadeVitimas': quantidade_vitimas,
             'sinistroVitimas': sinistro_vitimas,
             'equipamentosSeguranca': data['equipamentosSeguranca'].strip(),
             'latitude': data['latitude'].strip(),
             'longitude': data['longitude'].strip(),
-            'descricao': str(data.get('descricao', '')).strip(),
+            'descricao': registro_fora_local_descricao or str(data.get('descricao', '')).strip(),
+            'registroNoLocalSinistro': registro_no_local_sinistro,
+            'registroForaLocalDescricao': registro_fora_local_descricao,
             'fotos': photos,
             'tempoRegistroSegundos': elapsed_seconds,
             'dataHora': now_local_datetime().strftime('%d/%m/%Y %H:%M:%S'),

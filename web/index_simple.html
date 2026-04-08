@@ -391,6 +391,45 @@
       color: #9a3412;
     }
 
+    .choice-group {
+      margin: 0;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .choice-group legend {
+      padding: 0 6px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .choice-help {
+      display: block;
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 12px;
+    }
+
+    .choice-option {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 0.92rem;
+      color: #1e293b;
+    }
+
+    .choice-option input {
+      margin-top: 3px;
+    }
+
     .preview-grid {
       margin-top: 8px;
       display: grid;
@@ -721,26 +760,28 @@
             <label for="endereco">Endereço do sinistro</label>
             <input id="endereco" required>
           </div>
-          <div class="field">
-            <label for="veiculoUsuario">Veículo/Usuário</label>
-            <select id="veiculoUsuario" required>
-              <option value="">Selecione</option>
-              <option>A Pé</option>
-              <option>Automóvel</option>
-              <option>Automóvel por aplicativo</option>
-              <option>Motocicleta</option>
-              <option>Motocicleta por aplicativo</option>
-              <option>Bicicleta</option>
-              <option>Bicicleta por aplicativo</option>
-              <option>Ônibus/Similar</option>
-              <option>Veículo pesado</option>
-              <option>Ambulância/ SAMU</option>
-              <option>Resgate</option>
-              <option>Veículo de tração animal</option>
-              <option>Animal montado</option>
-              <option>Ignorado</option>
-              <option>Outro</option>
-            </select>
+          <div class="field full">
+            <fieldset class="choice-group" id="veiculoUsuarioGroup">
+              <legend>Veículo/Usuário</legend>
+              <span class="choice-help">Marque uma ou mais opções.</span>
+              <div class="choice-grid">
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="A Pé">A Pé</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel">Automóvel</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel por aplicativo">Automóvel por aplicativo</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta">Motocicleta</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta por aplicativo">Motocicleta por aplicativo</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta">Bicicleta</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta por aplicativo">Bicicleta por aplicativo</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ônibus/Similar">Ônibus/Similar</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo pesado">Veículo pesado</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ambulância/SAMU">Ambulância/SAMU</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Resgate">Resgate</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo de tração animal">Veículo de tração animal</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Animal montado">Animal montado</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ignorado">Ignorado</label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Outro">Outro</label>
+              </div>
+            </fieldset>
           </div>
           <div class="field">
             <label for="sinistroComVitimas">Sinistro com vítimas</label>
@@ -750,14 +791,18 @@
               <option>Não</option>
             </select>
           </div>
-          <div class="field" id="quantidadeVitimasField" hidden>
-            <label for="quantidadeVitimas">Quantidade de vítimas</label>
-            <select id="quantidadeVitimas">
-              <option value="">Selecione</option>
-              <option value="1">1</option>
-              <option value="2 ou mais">2 ou mais</option>
-              <option value="Vítima fatal">Vítima fatal</option>
-            </select>
+          <div class="field full" id="quantidadeVitimasField" hidden>
+            <fieldset class="choice-group" id="quantidadeVitimasGroup">
+              <legend>Perfil das vítimas</legend>
+              <span class="choice-help">Marque uma ou mais opções.</span>
+              <div class="choice-grid">
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima sem gravidade">1 vítima sem gravidade</label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima com gravidade">1 vítima com gravidade</label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais sem gravidade">2 vítimas ou mais sem gravidade</label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais com gravidade">2 vítimas ou mais com gravidade</label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="Vítima fatal">Vítima fatal</label>
+              </div>
+            </fieldset>
           </div>
           <div class="field full">
             <label for="equipamentosSeguranca">Equipamentos de segurança em uso</label>
@@ -788,6 +833,18 @@
               <h3>Cronometro do registro em andamento</h3>
               <div id="live-timer" class="stopwatch-time">00h 00m 00s</div>
             </div>
+          </div>
+          <div class="field full">
+            <label for="registroNoLocalSinistro">Este registro está sendo feito no local do sinistro?</label>
+            <select id="registroNoLocalSinistro" required>
+              <option value="">Selecione</option>
+              <option>Sim</option>
+              <option>Não</option>
+            </select>
+          </div>
+          <div class="field full" id="registroForaLocalDescricaoField" hidden>
+            <label for="registroForaLocalDescricao">Breve descrição</label>
+            <textarea id="registroForaLocalDescricao" rows="3" placeholder="Descreva brevemente de onde ou como este registro está sendo realizado."></textarea>
           </div>
           <div class="field full">
             <label for="fotos">Fotos do sinistro</label>
@@ -904,10 +961,13 @@
     const rows = document.getElementById('rows');
     const empty = document.getElementById('empty');
     const municipioNotificacaoInput = document.getElementById('municipioNotificacao');
-    const veiculoUsuarioInput = document.getElementById('veiculoUsuario');
+    const veiculoUsuarioInputs = Array.from(document.querySelectorAll('input[name="veiculoUsuario"]'));
     const sinistroComVitimasInput = document.getElementById('sinistroComVitimas');
     const quantidadeVitimasField = document.getElementById('quantidadeVitimasField');
-    const quantidadeVitimasInput = document.getElementById('quantidadeVitimas');
+    const quantidadeVitimasInputs = Array.from(document.querySelectorAll('input[name="quantidadeVitimas"]'));
+    const registroNoLocalSinistroInput = document.getElementById('registroNoLocalSinistro');
+    const registroForaLocalDescricaoField = document.getElementById('registroForaLocalDescricaoField');
+    const registroForaLocalDescricaoInput = document.getElementById('registroForaLocalDescricao');
     const equipamentosSegurancaInput = document.getElementById('equipamentosSeguranca');
     const photosInput = document.getElementById('fotos');
     const photosCameraInput = document.getElementById('fotosCamera');
@@ -1008,13 +1068,28 @@
       return '-';
     }
 
+    function getCheckedValues(inputs) {
+      return inputs.filter((input) => input.checked).map((input) => input.value.trim()).filter(Boolean);
+    }
+
     function updateVictimsSelectorUI() {
       const hasVictims = sinistroComVitimasInput.value === 'Sim';
       quantidadeVitimasField.hidden = !hasVictims;
-      quantidadeVitimasInput.required = hasVictims;
 
       if (!hasVictims) {
-        quantidadeVitimasInput.value = '';
+        quantidadeVitimasInputs.forEach((input) => {
+          input.checked = false;
+        });
+      }
+    }
+
+    function updateRegistroLocalUI() {
+      const isOutsideLocation = registroNoLocalSinistroInput.value === 'Não';
+      registroForaLocalDescricaoField.hidden = !isOutsideLocation;
+      registroForaLocalDescricaoInput.required = isOutsideLocation;
+
+      if (!isOutsideLocation) {
+        registroForaLocalDescricaoInput.value = '';
       }
     }
 
@@ -2033,28 +2108,47 @@
       btnSubmit.disabled = true;
       setStatus('Enviando sinistro...', '');
 
+      const selectedVeiculos = getCheckedValues(veiculoUsuarioInputs);
+      const selectedVitimas = getCheckedValues(quantidadeVitimasInputs);
+      const registroNoLocal = registroNoLocalSinistroInput.value.trim();
+      const registroForaLocalDescricao = registroForaLocalDescricaoInput.value.trim();
+
       const payload = {
         localId: String(Date.now()),
         dataHora: new Date().toLocaleString('pt-BR'),
         municipioNotificacao: municipioNotificacaoInput.value.trim(),
         nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
         endereco: document.getElementById('endereco').value.trim(),
-        veiculoUsuario: veiculoUsuarioInput.value.trim(),
+        veiculoUsuario: selectedVeiculos.join(' | '),
         sinistroComVitimas: sinistroComVitimasInput.value.trim(),
-        quantidadeVitimas: quantidadeVitimasInput.value.trim(),
+        quantidadeVitimas: selectedVitimas.join(' | '),
         sinistroVitimas: sinistroComVitimasInput.value.trim() === 'Sim'
-          ? quantidadeVitimasInput.value.trim()
+          ? selectedVitimas.join(' | ')
           : 'Sem vítimas',
         equipamentosSeguranca: equipamentosSegurancaInput.value.trim(),
         latitude: latInput.value.trim(),
         longitude: lonInput.value.trim(),
+        registroNoLocalSinistro: registroNoLocal,
+        registroForaLocalDescricao,
         tempoRegistroSegundos: getCurrentStopwatchSeconds(),
         fotos: encodedPhotos
       };
 
       try {
-        if (payload.sinistroComVitimas === 'Sim' && !payload.quantidadeVitimas) {
-          throw new Error('Informe a quantidade de vítimas para sinistro com vítimas.');
+        if (selectedVeiculos.length === 0) {
+          throw new Error('Selecione ao menos uma opção em Veículo/Usuário.');
+        }
+
+        if (!registroNoLocal) {
+          throw new Error('Informe se o registro está sendo feito no local do sinistro.');
+        }
+
+        if (registroNoLocal === 'Não' && !registroForaLocalDescricao) {
+          throw new Error('Informe uma breve descrição quando o registro não for feito no local do sinistro.');
+        }
+
+        if (payload.sinistroComVitimas === 'Sim' && selectedVitimas.length === 0) {
+          throw new Error('Selecione pelo menos uma opção no perfil das vítimas para sinistro com vítimas.');
         }
 
         if (!navigator.onLine) {
@@ -2118,8 +2212,10 @@
     updateRealtimeIndicator();
     updateVictimsSelectorUI();
     sinistroComVitimasInput.addEventListener('change', updateVictimsSelectorUI);
+    registroNoLocalSinistroInput.addEventListener('change', updateRegistroLocalUI);
     setPhotoTab('gallery');
     refreshInstallUIState();
+    updateRegistroLocalUI();
     setPointOnMap(-8.050000, -34.900000, true);
     startStopwatch();
     renderQuickLocalData();
