@@ -359,6 +359,38 @@
       white-space: nowrap;
     }
 
+    .stream-status {
+      margin: 0 0 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .stream-status.connected {
+      border-color: #86efac;
+      background: #f0fdf4;
+      color: #166534;
+    }
+
+    .stream-status.connecting {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .stream-status.offline {
+      border-color: #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+    }
+
     .preview-grid {
       margin-top: 8px;
       display: grid;
@@ -807,6 +839,7 @@
         <button type="button" class="secondary" id="btn-download-monthly" hidden>Baixar planilha mensal</button>
         <span class="badge">Visualizacao agrupada de 10 em 10</span>
       </div>
+      <div id="stream-status" class="stream-status connecting">Tempo real: conectando...</div>
       <div id="offline-info" class="map-caption"></div>
       <div id="empty" class="empty">Carregando registros...</div>
       <div style="overflow:auto;">
@@ -893,6 +926,7 @@
     const btnBannerInstall = document.getElementById('btn-banner-install');
     const btnBannerHelp = document.getElementById('btn-banner-help');
     const btnBannerClose = document.getElementById('btn-banner-close');
+    const streamStatus = document.getElementById('stream-status');
     const offlineInfo = document.getElementById('offline-info');
     const peMap = document.getElementById('pe-map');
     const latInput = document.getElementById('latitude');
@@ -939,6 +973,25 @@
       updateBanner.hidden = false;
     }
 
+    function updateRealtimeIndicator() {
+      if (!streamStatus) return;
+
+      if (!navigator.onLine) {
+        streamStatus.textContent = 'Tempo real: offline (aguardando reconexao)';
+        streamStatus.className = 'stream-status offline';
+        return;
+      }
+
+      if (streamConnected) {
+        streamStatus.textContent = 'Tempo real: conectado';
+        streamStatus.className = 'stream-status connected';
+        return;
+      }
+
+      streamStatus.textContent = 'Tempo real: reconectando (fallback 5s)';
+      streamStatus.className = 'stream-status connecting';
+    }
+
     function hideUpdateBanner() {
       updateBanner.hidden = true;
     }
@@ -981,20 +1034,25 @@
     function connectRealtimeStream() {
       if (!window.EventSource) return;
       if (accidentsStream) accidentsStream.close();
+      streamConnected = false;
+      updateRealtimeIndicator();
 
       accidentsStream = new EventSource('/api/accidents/stream');
 
       accidentsStream.addEventListener('ready', () => {
         streamConnected = true;
+        updateRealtimeIndicator();
       });
 
       accidentsStream.addEventListener('update', () => {
         streamConnected = true;
+        updateRealtimeIndicator();
         scheduleRealtimeReload();
       });
 
       accidentsStream.onerror = () => {
         streamConnected = false;
+        updateRealtimeIndicator();
         if (accidentsStream) {
           accidentsStream.close();
           accidentsStream = null;
@@ -1921,11 +1979,13 @@
 
     window.addEventListener('online', () => {
       updateOfflineInfo();
+      updateRealtimeIndicator();
       syncOfflineReports();
     });
 
     window.addEventListener('offline', () => {
       updateOfflineInfo();
+      updateRealtimeIndicator();
       setStatus('Voce esta offline. Registros serao salvos localmente.', 'warn');
     });
 
@@ -2055,6 +2115,7 @@
     }
 
     updateOfflineInfo();
+    updateRealtimeIndicator();
     updateVictimsSelectorUI();
     sinistroComVitimasInput.addEventListener('change', updateVictimsSelectorUI);
     setPhotoTab('gallery');
