@@ -8,7 +8,7 @@
   "theme_color": "#1d4ed8",
   "description": "Registro de sinistros de trânsito em Pernambuco",
   "categories": ["utilities", "productivity"],
-    "version": "11",
+    "version": "12",
   "icons": [
     {
       "src": "/launcher-home-v9-192.png?v=9",

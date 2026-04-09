@@ -60,7 +60,7 @@ def load_dotenv_file(path='.env'):
 load_dotenv_file()
 
 WEB_DIR = 'web'
-APP_VERSION = os.environ.get('APP_VERSION', '1.0.1')
+APP_VERSION = os.environ.get('APP_VERSION', '1.0.2')
 APP_TIMEZONE = os.environ.get('APP_TIMEZONE', 'America/Recife').strip() or 'America/Recife'
 MAX_PHOTOS = 5
 MAX_PHOTO_CHARS = 1_200_000

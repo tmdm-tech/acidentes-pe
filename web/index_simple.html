@@ -945,13 +945,7 @@
             <tr>
               <th>Data/Hora</th>
               <th>Município</th>
-              <th>Notificante</th>
-              <th>Endereço do Sinistro</th>
               <th>Veículo/Usuário</th>
-              <th>Vítimas</th>
-              <th>Equipamentos</th>
-              <th>Coordenadas</th>
-              <th>Fotos</th>
               <th>Tempo de registro</th>
             </tr>
           </thead>
@@ -1698,13 +1692,7 @@
       tr.innerHTML = `
         <td>${item.dataHora || '-'} ${offChip}</td>
         <td>${item.municipioNotificacao || '-'}</td>
-        <td>${item.nomeNotificante || '-'}</td>
-        <td>${item.endereco || '-'}</td>
         <td>${item.veiculoUsuario || '-'}</td>
-        <td>${getVictimDisplay(item)}</td>
-        <td>${item.equipamentosSeguranca || '-'}</td>
-        <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
-        <td>${buildThumbs(item)}</td>
         <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
       `;
       rows.appendChild(tr);

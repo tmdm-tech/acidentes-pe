@@ -1,6 +1,6 @@
-const CACHE_NAME = 'observaatt-pe-v11';
-const API_CACHE = 'observaatt-pe-api-v11';
-const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v11';
+const CACHE_NAME = 'observaatt-pe-v12';
+const API_CACHE = 'observaatt-pe-api-v12';
+const MANIFEST_URL = '/manifest.json?v=observaatt-pe-v12';
 const ASSETS = [
   '/',
   MANIFEST_URL,
