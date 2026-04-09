@@ -618,8 +618,9 @@ def bootstrap_supabase_from_local():
     try:
         response = SUPABASE_CLIENT.table(SUPABASE_TABLE).select('id').limit(1).execute()
         existing = response.data or []
-    except Exception:
-        return {'enabled': True, 'bootstrapped': False, 'records': 0}
+    except Exception as exc:
+        print(f'[WARN] Falha ao verificar bootstrap no Supabase; ignorando bootstrap neste startup. Motivo: {exc}')
+        return {'enabled': True, 'bootstrapped': False, 'records': 0, 'error': str(exc)}
 
     if existing:
         return {'enabled': True, 'bootstrapped': False, 'records': 0}
@@ -632,7 +633,12 @@ def bootstrap_supabase_from_local():
     if not payload:
         return {'enabled': True, 'bootstrapped': False, 'records': 0}
 
-    SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+    try:
+        SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+    except Exception as exc:
+        print(f'[WARN] Falha no bootstrap local->Supabase; mantendo app online com fallback local. Motivo: {exc}')
+        return {'enabled': True, 'bootstrapped': False, 'records': 0, 'error': str(exc)}
+
     return {'enabled': True, 'bootstrapped': True, 'records': len(payload)}
 
 
@@ -1577,14 +1583,26 @@ def delete_accident(accident_id):
     }), 403
 
 validate_persistence_mode()
-bootstrap_supabase_from_local()
+try:
+    bootstrap_supabase_from_local()
+except Exception as startup_bootstrap_exc:
+    print(f'[WARN] Falha inesperada no bootstrap Supabase durante startup: {startup_bootstrap_exc}')
+
 if supabase_enabled():
     try:
         sync_local_records_to_supabase(force=True)
     except Exception as startup_sync_exc:
         print(f'[WARN] Falha na sincronizacao inicial local->Supabase: {startup_sync_exc}')
-start_daily_scheduler()
-ensure_scheduled_daily_exports(load_accidents())
+
+try:
+    start_daily_scheduler()
+except Exception as scheduler_exc:
+    print(f'[WARN] Falha ao iniciar scheduler diario: {scheduler_exc}')
+
+try:
+    ensure_scheduled_daily_exports(load_accidents())
+except Exception as startup_exports_exc:
+    print(f'[WARN] Falha na geracao inicial de exportacoes: {startup_exports_exc}')
 
 
 if __name__ == '__main__':
