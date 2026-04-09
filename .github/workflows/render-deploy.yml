@@ -14,6 +14,7 @@ jobs:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_SERVICE_NAME: ${{ secrets.RENDER_SERVICE_NAME }}
         run: |
           set -euo pipefail
 
@@ -33,17 +34,77 @@ jobs:
             echo "Configure um dos caminhos nos GitHub Secrets:"
             echo "1) RENDER_DEPLOY_HOOK_URL (recomendado)"
             echo "2) RENDER_API_KEY + RENDER_SERVICE_ID"
-            exit 1
+            echo "3) RENDER_API_KEY + RENDER_SERVICE_NAME"
+
+            if [ -n "${RENDER_API_KEY:-}" ] && [ -n "${RENDER_SERVICE_NAME:-}" ]; then
+              echo "Tentando localizar service id por nome: ${RENDER_SERVICE_NAME}"
+              services_json=$(curl -sS -X GET "https://api.render.com/v1/services" \
+                -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                -H "Accept: application/json")
+
+              resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 - <<'PY'
+import json, os
+payload = json.loads(os.environ.get('SERVICES_JSON', '{}'))
+target = os.environ.get('RENDER_SERVICE_NAME', '').strip().lower()
+for item in payload if isinstance(payload, list) else payload.get('services', []):
+    name = str(item.get('service', {}).get('name') or item.get('name') or '').strip().lower()
+    sid = str(item.get('service', {}).get('id') or item.get('id') or '').strip()
+    if name and sid and name == target:
+        print(sid)
+        break
+PY
+)
+
+              if [ -n "${resolved_service_id:-}" ]; then
+                RENDER_SERVICE_ID="${resolved_service_id}"
+                echo "Service id resolvido automaticamente."
+              else
+                echo "Nao foi possivel resolver service id por nome."
+                exit 1
+              fi
+            else
+              exit 1
+            fi
           fi
 
           response=$(curl -sS -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Accept: application/json")
 
+          if echo "${response}" | grep -qi "not found: service" && [ -n "${RENDER_SERVICE_NAME:-}" ]; then
+            echo "Service id atual nao encontrado; tentando resolver por nome: ${RENDER_SERVICE_NAME}"
+            services_json=$(curl -sS -X GET "https://api.render.com/v1/services" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" \
+              -H "Accept: application/json")
+
+            resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 - <<'PY'
+import json, os
+payload = json.loads(os.environ.get('SERVICES_JSON', '{}'))
+target = os.environ.get('RENDER_SERVICE_NAME', '').strip().lower()
+for item in payload if isinstance(payload, list) else payload.get('services', []):
+    name = str(item.get('service', {}).get('name') or item.get('name') or '').strip().lower()
+    sid = str(item.get('service', {}).get('id') or item.get('id') or '').strip()
+    if name and sid and name == target:
+        print(sid)
+        break
+PY
+)
+
+            if [ -n "${resolved_service_id:-}" ]; then
+              RENDER_SERVICE_ID="${resolved_service_id}"
+              response=$(curl -sS -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+                -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                -H "Accept: application/json")
+            fi
+          fi
+
           echo "Resposta Render: ${response}"
 
           deploy_id=$(echo "${response}" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
           if [ -z "${deploy_id}" ]; then
+            if echo "${response}" | grep -qi "not found: service"; then
+              echo "Service id nao encontrado. Confira RENDER_SERVICE_ID ou defina RENDER_SERVICE_NAME."
+            fi
             echo "Nao foi possivel identificar deploy_id na resposta da API."
             exit 1
           fi
