@@ -25,6 +25,10 @@ jobs:
 
           HOOK_URL="${RENDER_DEPLOY_HOOK_URL:-${RENDER_DEPLOY_HOOK:-${RENDER_HOOK_URL:-${RENDER_DEPLOY_HOOK_URL_VAR:-${RENDER_DEPLOY_HOOK_VAR:-${RENDER_HOOK_URL_VAR:-}}}}}}"
 
+          if [ -z "${RENDER_SERVICE_NAME:-}" ]; then
+            RENDER_SERVICE_NAME="observatrafego-jx4p"
+          fi
+
           # Prefer deploy hook when available; it is simpler to configure.
           if [ -n "${HOOK_URL:-}" ]; then
             hook_response=$(curl -sS -X POST "${HOOK_URL}" -H "Accept: application/json")
