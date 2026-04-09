@@ -24,6 +24,7 @@ jobs:
           set -euo pipefail
 
           HOOK_URL="${RENDER_DEPLOY_HOOK_URL:-${RENDER_DEPLOY_HOOK:-${RENDER_HOOK_URL:-${RENDER_DEPLOY_HOOK_URL_VAR:-${RENDER_DEPLOY_HOOK_VAR:-${RENDER_HOOK_URL_VAR:-}}}}}}"
+          HOOK_URL="$(printf '%s' "${HOOK_URL}" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//;s/^'"'"'//;s/'"'"'$//')"
 
           if [ -z "${RENDER_SERVICE_NAME:-}" ]; then
             RENDER_SERVICE_NAME="observatrafego-jx4p"
