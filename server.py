@@ -1583,26 +1583,33 @@ def delete_accident(accident_id):
     }), 403
 
 validate_persistence_mode()
-try:
-    bootstrap_supabase_from_local()
-except Exception as startup_bootstrap_exc:
-    print(f'[WARN] Falha inesperada no bootstrap Supabase durante startup: {startup_bootstrap_exc}')
 
-if supabase_enabled():
+def _background_startup_tasks():
+    """Executa tarefas de startup que dependem de rede em thread separada.
+    Nao bloqueia o boot do worker gunicorn."""
     try:
-        sync_local_records_to_supabase(force=True)
-    except Exception as startup_sync_exc:
-        print(f'[WARN] Falha na sincronizacao inicial local->Supabase: {startup_sync_exc}')
+        bootstrap_supabase_from_local()
+    except Exception as exc:
+        print(f'[WARN] Falha inesperada no bootstrap Supabase durante startup: {exc}')
+
+    if supabase_enabled():
+        try:
+            sync_local_records_to_supabase(force=True)
+        except Exception as exc:
+            print(f'[WARN] Falha na sincronizacao inicial local->Supabase: {exc}')
+
+    try:
+        ensure_scheduled_daily_exports(load_accidents())
+    except Exception as exc:
+        print(f'[WARN] Falha na geracao inicial de exportacoes: {exc}')
 
 try:
     start_daily_scheduler()
 except Exception as scheduler_exc:
     print(f'[WARN] Falha ao iniciar scheduler diario: {scheduler_exc}')
 
-try:
-    ensure_scheduled_daily_exports(load_accidents())
-except Exception as startup_exports_exc:
-    print(f'[WARN] Falha na geracao inicial de exportacoes: {startup_exports_exc}')
+_startup_thread = threading.Thread(target=_background_startup_tasks, daemon=True)
+_startup_thread.start()
 
 
 if __name__ == '__main__':
