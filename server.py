@@ -460,6 +460,8 @@ def _supabase_record_from_accident(accident):
         'nome_notificante': normalized['nomeNotificante'],
         'endereco': normalized['endereco'],
         'veiculo_usuario': normalized['veiculoUsuario'],
+        'registro_no_local_sinistro': normalized['registroNoLocalSinistro'],
+        'registro_fora_local_descricao': normalized['registroForaLocalDescricao'],
         'sinistro_com_vitimas': normalized['sinistroComVitimas'],
         'quantidade_vitimas': normalized['quantidadeVitimas'],
         'sinistro_vitimas': normalized['sinistroVitimas'],
@@ -589,6 +591,14 @@ def sync_local_records_to_supabase(local_records=None, supabase_records=None, fo
     local_items = local_records if local_records is not None else _local_load_accidents()
     if not local_items:
         return {'enabled': True, 'synced': 0, 'pending': 0}
+
+    if force:
+        payload = [_supabase_record_from_accident(item) for item in local_items if str(item.get('id', '')).strip()]
+        if not payload:
+            return {'enabled': True, 'synced': 0, 'pending': 0}
+        upsert_info = _supabase_upsert_resilient(payload)
+        print(f'[INFO] Sincronizacao completa local->Supabase: {len(payload)} registro(s) enviados.')
+        return {'enabled': True, 'synced': len(payload), 'pending': len(payload), **upsert_info}
 
     remote_items = supabase_records if supabase_records is not None else _supabase_fetch_all_accidents()
     remote_ids = {str(item.get('id', '')).strip() for item in remote_items if str(item.get('id', '')).strip()}
@@ -1224,6 +1234,21 @@ def get_accidents():
     accidents = load_accidents()
     ensure_scheduled_daily_exports(accidents)
     return no_cache_response(jsonify(accidents))
+
+
+@app.route('/api/accidents/meta', methods=['GET'])
+def get_accidents_meta():
+    accidents = load_accidents()
+    latest = accidents[-1] if accidents else {}
+    latest_id = str(latest.get('id', '')).strip()
+    latest_data_hora = str(latest.get('dataHora', '')).strip()
+    payload = {
+        'total': len(accidents),
+        'latestId': latest_id,
+        'latestDataHora': latest_data_hora,
+        'fingerprint': f'{len(accidents)}:{latest_id}:{latest_data_hora}'
+    }
+    return no_cache_response(jsonify(payload))
 
 
 @app.route('/api/accidents/stream', methods=['GET'])

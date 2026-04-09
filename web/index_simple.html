@@ -1058,11 +1058,13 @@
     const SW_UPDATE_RELOAD_KEY = 'sw_update_reload_once_v1';
     const STREET_ZOOM = 16;
     const STREAM_RETRY_MS = 3000;
+    const META_POLL_MS = 8000;
     let autoRefreshInterval = null;
     let accidentsStream = null;
     let streamReconnectTimer = null;
     let streamConnected = false;
     let pendingRealtimeReload = false;
+    let lastRemoteFingerprint = '';
     let adminAccessKey = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
 
     function showUpdateBanner(message, showAction = true) {
@@ -1135,6 +1137,32 @@
       await loadAccidents();
     }
 
+    async function refreshIfRemoteChanged() {
+      if (!navigator.onLine) return;
+      try {
+        const response = await fetch('/api/accidents/meta', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) return;
+        const meta = await response.json();
+        const fingerprint = String(meta.fingerprint || '');
+        if (!fingerprint) return;
+
+        if (!lastRemoteFingerprint) {
+          lastRemoteFingerprint = fingerprint;
+          return;
+        }
+
+        if (fingerprint !== lastRemoteFingerprint) {
+          lastRemoteFingerprint = fingerprint;
+          await refreshDataSilently();
+        }
+      } catch (_) {
+        // Falha de meta-check nao deve interromper a experiencia.
+      }
+    }
+
     function scheduleRealtimeReload() {
       if (pendingRealtimeReload) return;
       pendingRealtimeReload = true;
@@ -1177,7 +1205,10 @@
 
     function startAutomaticUpdates() {
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-      autoRefreshInterval = null;
+      autoRefreshInterval = setInterval(() => {
+        if (document.hidden) return;
+        refreshIfRemoteChanged();
+      }, META_POLL_MS);
     }
 
     function adminHeaders() {
@@ -1860,6 +1891,11 @@
         empty.textContent = '';
         setRenderedItems(items.slice().reverse());
 
+        const latest = items.length > 0 ? items[items.length - 1] : {};
+        const latestId = String((latest && latest.id) || '').trim();
+        const latestDataHora = String((latest && latest.dataHora) || '').trim();
+        lastRemoteFingerprint = `${items.length}:${latestId}:${latestDataHora}`;
+
         if (timerInterval) clearInterval(timerInterval);
       } catch (err) {
         const cached = getCachedAccidents();
@@ -1881,6 +1917,12 @@
 
         empty.textContent = 'Mostrando cache local (offline).';
         setRenderedItems(fallback.slice().reverse());
+
+        const latest = fallback.length > 0 ? fallback[fallback.length - 1] : {};
+        const latestId = String((latest && latest.id) || '').trim();
+        const latestDataHora = String((latest && latest.dataHora) || '').trim();
+        lastRemoteFingerprint = `${fallback.length}:${latestId}:${latestDataHora}`;
+
         if (timerInterval) clearInterval(timerInterval);
       }
     }
