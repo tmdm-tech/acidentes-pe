@@ -11,13 +11,28 @@ jobs:
     steps:
       - name: Trigger Render Deploy
         env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
           set -euo pipefail
 
+          # Prefer deploy hook when available; it is simpler to configure.
+          if [ -n "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            hook_response=$(curl -sS -X POST "${RENDER_DEPLOY_HOOK_URL}" -H "Accept: application/json")
+            echo "Resposta Render (hook): ${hook_response}"
+            if echo "${hook_response}" | grep -qiE "error|forbidden|unauthorized|not found"; then
+              echo "Falha ao acionar deploy hook do Render."
+              exit 1
+            fi
+            echo "Deploy acionado via hook com sucesso."
+            exit 0
+          fi
+
           if [ -z "${RENDER_API_KEY:-}" ] || [ -z "${RENDER_SERVICE_ID:-}" ]; then
-            echo "RENDER_API_KEY e RENDER_SERVICE_ID precisam estar configurados nos GitHub Secrets."
+            echo "Configure um dos caminhos nos GitHub Secrets:"
+            echo "1) RENDER_DEPLOY_HOOK_URL (recomendado)"
+            echo "2) RENDER_API_KEY + RENDER_SERVICE_ID"
             exit 1
           fi
 
