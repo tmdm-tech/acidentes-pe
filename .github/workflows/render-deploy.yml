@@ -12,15 +12,22 @@ jobs:
       - name: Trigger Render Deploy
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_HOOK_URL: ${{ secrets.RENDER_HOOK_URL }}
+          RENDER_DEPLOY_HOOK_URL_VAR: ${{ vars.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_DEPLOY_HOOK_VAR: ${{ vars.RENDER_DEPLOY_HOOK }}
+          RENDER_HOOK_URL_VAR: ${{ vars.RENDER_HOOK_URL }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_SERVICE_NAME: ${{ secrets.RENDER_SERVICE_NAME }}
         run: |
           set -euo pipefail
 
+          HOOK_URL="${RENDER_DEPLOY_HOOK_URL:-${RENDER_DEPLOY_HOOK:-${RENDER_HOOK_URL:-${RENDER_DEPLOY_HOOK_URL_VAR:-${RENDER_DEPLOY_HOOK_VAR:-${RENDER_HOOK_URL_VAR:-}}}}}}"
+
           # Prefer deploy hook when available; it is simpler to configure.
-          if [ -n "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
-            hook_response=$(curl -sS -X POST "${RENDER_DEPLOY_HOOK_URL}" -H "Accept: application/json")
+          if [ -n "${HOOK_URL:-}" ]; then
+            hook_response=$(curl -sS -X POST "${HOOK_URL}" -H "Accept: application/json")
             echo "Resposta Render (hook): ${hook_response}"
             if echo "${hook_response}" | grep -qiE "error|forbidden|unauthorized|not found"; then
               echo "Falha ao acionar deploy hook do Render."
