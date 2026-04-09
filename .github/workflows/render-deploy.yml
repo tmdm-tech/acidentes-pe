@@ -42,18 +42,7 @@ jobs:
                 -H "Authorization: Bearer ${RENDER_API_KEY}" \
                 -H "Accept: application/json")
 
-              resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 - <<'PY'
-import json, os
-payload = json.loads(os.environ.get('SERVICES_JSON', '{}'))
-target = os.environ.get('RENDER_SERVICE_NAME', '').strip().lower()
-for item in payload if isinstance(payload, list) else payload.get('services', []):
-    name = str(item.get('service', {}).get('name') or item.get('name') or '').strip().lower()
-    sid = str(item.get('service', {}).get('id') or item.get('id') or '').strip()
-    if name and sid and name == target:
-        print(sid)
-        break
-PY
-)
+              resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 -c "import json, os; payload=json.loads(os.environ.get('SERVICES_JSON','{}')); target=os.environ.get('RENDER_SERVICE_NAME','').strip().lower(); items=(payload if isinstance(payload,list) else payload.get('services', [])); print(next((str((i.get('service') or {}).get('id') or i.get('id') or '') for i in items if str((i.get('service') or {}).get('name') or i.get('name') or '').strip().lower()==target), ''))")
 
               if [ -n "${resolved_service_id:-}" ]; then
                 RENDER_SERVICE_ID="${resolved_service_id}"
@@ -77,18 +66,7 @@ PY
               -H "Authorization: Bearer ${RENDER_API_KEY}" \
               -H "Accept: application/json")
 
-            resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 - <<'PY'
-import json, os
-payload = json.loads(os.environ.get('SERVICES_JSON', '{}'))
-target = os.environ.get('RENDER_SERVICE_NAME', '').strip().lower()
-for item in payload if isinstance(payload, list) else payload.get('services', []):
-    name = str(item.get('service', {}).get('name') or item.get('name') or '').strip().lower()
-    sid = str(item.get('service', {}).get('id') or item.get('id') or '').strip()
-    if name and sid and name == target:
-        print(sid)
-        break
-PY
-)
+            resolved_service_id=$(SERVICES_JSON="${services_json}" RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME}" python3 -c "import json, os; payload=json.loads(os.environ.get('SERVICES_JSON','{}')); target=os.environ.get('RENDER_SERVICE_NAME','').strip().lower(); items=(payload if isinstance(payload,list) else payload.get('services', [])); print(next((str((i.get('service') or {}).get('id') or i.get('id') or '') for i in items if str((i.get('service') or {}).get('name') or i.get('name') or '').strip().lower()==target), ''))")
 
             if [ -n "${resolved_service_id:-}" ]; then
               RENDER_SERVICE_ID="${resolved_service_id}"
