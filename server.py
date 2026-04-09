@@ -225,15 +225,13 @@ def get_supabase_diagnostics():
         response = (
             SUPABASE_CLIENT
             .table(SUPABASE_TABLE)
-            .select('id')
-            .limit(1)
+            .select('*', count='exact')
+            .limit(0)
             .execute()
         )
         diagnostics['connected'] = True
         diagnostics['tableAccessible'] = True
-        # Mantem o campo para compatibilidade de payload, sem obrigar count exato.
-        data = response.data or []
-        diagnostics['recordCount'] = len(data)
+        diagnostics['recordCount'] = response.count if response.count is not None else len(response.data or [])
         diagnostics['healthy'] = True
     except Exception as exc:
         diagnostics['error'] = str(exc)
