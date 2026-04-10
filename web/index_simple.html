@@ -1734,13 +1734,7 @@
           tr.innerHTML = `
             <td>${item.dataHora || '-'} ${offChip}</td>
             <td>${item.municipioNotificacao || '-'}</td>
-            <td>${item.nomeNotificante || '-'}</td>
-            <td>${item.endereco || '-'}</td>
             <td>${item.veiculoUsuario || '-'}</td>
-            <td>${getVictimDisplay(item)}</td>
-            <td>${item.equipamentosSeguranca || '-'}</td>
-            <td>${item.latitude || '-'}, ${item.longitude || '-'}</td>
-            <td>${buildThumbs(item)}</td>
             <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
           `;
           fragment.appendChild(tr);
