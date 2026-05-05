@@ -125,6 +125,7 @@ ACCIDENTS_FILE = os.path.join(DATA_DIR, 'accidents.json')
 ACCIDENTS_BAK_FILE = os.path.join(DATA_DIR, 'accidents.bak.json')
 EXPORTS_DIR = os.path.join(DATA_DIR, 'exports')
 EXPORT_STATE_FILE = os.path.join(EXPORTS_DIR, 'daily_export_state.json')
+TEMP_RESCUE_DIR = os.environ.get('TEMP_RESCUE_DIR', os.path.join('.', 'resgate_temporario')).strip() or os.path.join('.', 'resgate_temporario')
 SCHEDULER_STARTED = False
 ADMIN_ACCESS_KEY = (
     os.environ.get('ADMIN_ACCESS_KEY', '')
@@ -664,6 +665,35 @@ def write_backup_state(state):
     with open(BACKUP_STATE_FILE, 'w', encoding='utf-8') as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
     secure_file_permissions(BACKUP_STATE_FILE)
+
+
+def ensure_temp_rescue_dir(day_label=None):
+    label = day_label or now_local_datetime().strftime('%Y-%m-%d')
+    day_dir = os.path.join(TEMP_RESCUE_DIR, label)
+    os.makedirs(os.path.join(day_dir, 'incoming_jsonl'), exist_ok=True)
+    os.makedirs(os.path.join(day_dir, 'soltos'), exist_ok=True)
+    os.makedirs(os.path.join(day_dir, 'exports_snapshot'), exist_ok=True)
+    return day_dir
+
+
+def save_temporary_incoming_record(accident):
+    try:
+        normalized = _normalize_accident_record(accident)
+        day_dir = ensure_temp_rescue_dir()
+        jsonl_path = os.path.join(day_dir, 'incoming_jsonl', 'accidents_incoming.jsonl')
+        with open(jsonl_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(normalized, ensure_ascii=False) + '\n')
+
+        latest_path = os.path.join(day_dir, 'incoming_jsonl', 'latest_record.json')
+        with open(latest_path, 'w', encoding='utf-8') as f:
+            json.dump(normalized, f, ensure_ascii=False, indent=2)
+
+        secure_file_permissions(jsonl_path)
+        secure_file_permissions(latest_path)
+        return {'saved': True, 'path': jsonl_path}
+    except Exception as exc:
+        print(f'[WARN] Falha ao salvar registro no resgate temporario: {exc}')
+        return {'saved': False, 'error': str(exc)}
 
 
 def is_admin_request():
@@ -1531,6 +1561,7 @@ def add_accident():
         local_records = _local_load_accidents()
         local_records = _merge_accident_records(local_records, [accident])
         save_accidents(local_records)
+        save_temporary_incoming_record(accident)
 
         supabase_warning = ''
         supabase_warning_excerpt = ''
