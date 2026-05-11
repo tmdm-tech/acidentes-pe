@@ -696,6 +696,47 @@ def save_temporary_incoming_record(accident):
         return {'saved': False, 'error': str(exc)}
 
 
+def save_temporary_incoming_request(payload, parse_ok, content_type='', error=''):
+    """Salva toda requisicao recebida no endpoint de acidentes.
+
+    Esse trilho bruto serve para auditoria e diagnostico quando o payload
+    do app chega invalido para o schema atual.
+    """
+    try:
+        day_dir = ensure_temp_rescue_dir()
+        incoming_dir = os.path.join(day_dir, 'incoming_jsonl')
+        os.makedirs(incoming_dir, exist_ok=True)
+
+        now = now_local_datetime()
+        entry = {
+            'receivedAt': now.strftime('%d/%m/%Y %H:%M:%S'),
+            'receivedAtIso': now.isoformat(),
+            'path': request.path,
+            'method': request.method,
+            'contentType': str(content_type or request.headers.get('Content-Type', '')).strip(),
+            'remoteAddr': str(request.headers.get('X-Forwarded-For', request.remote_addr or '')).strip(),
+            'userAgent': str(request.headers.get('User-Agent', '')).strip(),
+            'parseOk': bool(parse_ok),
+            'error': str(error or '').strip(),
+            'payload': payload,
+        }
+
+        request_jsonl_path = os.path.join(incoming_dir, 'accidents_requests_raw.jsonl')
+        with open(request_jsonl_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+        latest_request_path = os.path.join(incoming_dir, 'latest_request_raw.json')
+        with open(latest_request_path, 'w', encoding='utf-8') as f:
+            json.dump(entry, f, ensure_ascii=False, indent=2)
+
+        secure_file_permissions(request_jsonl_path)
+        secure_file_permissions(latest_request_path)
+        return {'saved': True, 'path': request_jsonl_path}
+    except Exception as exc:
+        print(f'[WARN] Falha ao salvar requisicao bruta no resgate temporario: {exc}')
+        return {'saved': False, 'error': str(exc)}
+
+
 def is_admin_request():
     if not ADMIN_ACCESS_KEY:
         return False
@@ -1451,7 +1492,21 @@ def admin_supabase_status():
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
     try:
-        data = request.get_json() or {}
+        raw_body_text = request.get_data(as_text=True) or ''
+        data = request.get_json(silent=True)
+        parse_error = ''
+        if not isinstance(data, dict):
+            parse_error = 'JSON inválido ou payload não-objeto'
+            data = {}
+
+        # Sempre registrar o payload bruto que chegou do app, independente de validar.
+        payload_for_rescue = data if data else raw_body_text
+        save_temporary_incoming_request(
+            payload=payload_for_rescue,
+            parse_ok=(parse_error == ''),
+            content_type=request.headers.get('Content-Type', ''),
+            error=parse_error,
+        )
 
         def split_multi_values(raw_value):
             if isinstance(raw_value, list):
@@ -1461,40 +1516,79 @@ def add_accident():
                 return []
             return [part.strip() for part in text.split('|') if part.strip()]
 
-        # Validar dados obrigatórios
-        required_fields = [
-            'municipioNotificacao',
-            'nomeNotificante',
-            'endereco',
-            'veiculoUsuario',
-            'sinistroComVitimas',
-            'equipamentosSeguranca',
-            'latitude',
-            'longitude'
-        ]
-        for field in required_fields:
-            if field not in data or not str(data[field]).strip():
-                return jsonify({'error': f'Campo obrigatório: {field}'}), 400
+        def first_nonempty(*values):
+            for value in values:
+                if value is None:
+                    continue
+                text = str(value).strip()
+                if text:
+                    return text
+            return ''
 
-        sinistro_com_vitimas = str(data.get('sinistroComVitimas', '')).strip()
-        if sinistro_com_vitimas not in {'Sim', 'Não'}:
-            return jsonify({'error': 'Campo sinistroComVitimas inválido. Use Sim ou Não.'}), 400
+        def normalize_yes_no(raw_value, default='Não'):
+            text = str(raw_value or '').strip().lower()
+            if not text:
+                return default
 
-        veiculo_usuario_values = split_multi_values(data.get('veiculoUsuario', ''))
+            if text in {'sim', 's', 'yes', 'y', 'true', '1'}:
+                return 'Sim'
+            if text in {'nao', 'não', 'n', 'no', 'false', '0'}:
+                return 'Não'
+            return default
+
+        municipio_notificacao = first_nonempty(
+            data.get('municipioNotificacao'),
+            data.get('municipio'),
+            data.get('cidade'),
+            data.get('city'),
+        )
+        nome_notificante = first_nonempty(
+            data.get('nomeNotificante'),
+            data.get('nome'),
+            data.get('reporterName'),
+            'Não informado',
+        )
+        endereco = first_nonempty(
+            data.get('endereco'),
+            data.get('logradouro'),
+            data.get('address'),
+            data.get('descricaoEndereco'),
+            'Não informado',
+        )
+        equipamentos_seguranca = first_nonempty(
+            data.get('equipamentosSeguranca'),
+            data.get('equipamentoSeguranca'),
+            data.get('epi'),
+            'Não informado',
+        )
+        latitude = first_nonempty(data.get('latitude'), data.get('lat'))
+        longitude = first_nonempty(data.get('longitude'), data.get('lng'), data.get('lon'))
+
+        if not municipio_notificacao:
+            return jsonify({'error': 'Campo obrigatório: municipioNotificacao'}), 400
+
+        sinistro_com_vitimas = normalize_yes_no(
+            first_nonempty(data.get('sinistroComVitimas'), data.get('houveVitimas')),
+            default='Não',
+        )
+
+        veiculo_usuario_values = split_multi_values(
+            first_nonempty(data.get('veiculoUsuario'), data.get('veiculo'), data.get('tipoVeiculo'))
+        )
         if not veiculo_usuario_values:
-            return jsonify({'error': 'Selecione ao menos uma opção em Veículo/Usuário.'}), 400
+            veiculo_usuario_values = ['Não informado']
 
-        registro_no_local_sinistro = str(data.get('registroNoLocalSinistro', '')).strip()
-        if registro_no_local_sinistro not in {'Sim', 'Não'}:
-            return jsonify({'error': 'Informe se o registro está sendo feito no local do sinistro.'}), 400
+        registro_no_local_sinistro = normalize_yes_no(data.get('registroNoLocalSinistro'), default='Sim')
 
         registro_fora_local_descricao = str(data.get('registroForaLocalDescricao', '')).strip()
         if registro_no_local_sinistro == 'Não' and not registro_fora_local_descricao:
-            return jsonify({'error': 'Informe a breve descrição quando o registro não for feito no local do sinistro.'}), 400
+            registro_fora_local_descricao = str(data.get('descricao', '')).strip() or 'Registro fora do local (detalhe não informado)'
         if registro_no_local_sinistro == 'Sim':
             registro_fora_local_descricao = ''
 
-        quantidade_vitimas_values = split_multi_values(data.get('quantidadeVitimas', ''))
+        quantidade_vitimas_values = split_multi_values(
+            first_nonempty(data.get('quantidadeVitimas'), data.get('sinistroVitimas'))
+        )
         allowed_victim_options = {
             '1 vítima sem gravidade',
             '1 vítima com gravidade',
@@ -1502,11 +1596,10 @@ def add_accident():
             '2 vítimas ou mais com gravidade',
             'Vítima fatal',
         }
-        if any(value not in allowed_victim_options for value in quantidade_vitimas_values):
-            return jsonify({'error': 'Perfil de vítimas inválido.'}), 400
+        quantidade_vitimas_values = [value for value in quantidade_vitimas_values if value in allowed_victim_options]
         quantidade_vitimas = ' | '.join(quantidade_vitimas_values)
         if sinistro_com_vitimas == 'Sim' and not quantidade_vitimas_values:
-            return jsonify({'error': 'Selecione pelo menos uma opção no perfil das vítimas.'}), 400
+            quantidade_vitimas = 'Não informado'
         if sinistro_com_vitimas == 'Não':
             quantidade_vitimas = ''
 
@@ -1516,16 +1609,16 @@ def add_accident():
         if raw_photos is None:
             raw_photos = []
         if not isinstance(raw_photos, list):
-            return jsonify({'error': 'Campo fotos deve ser uma lista'}), 400
+            raw_photos = []
         if len(raw_photos) > MAX_PHOTOS:
-            return jsonify({'error': f'Maximo de {MAX_PHOTOS} fotos por registro'}), 400
+            raw_photos = raw_photos[:MAX_PHOTOS]
 
         photos = []
         for photo in raw_photos:
             if not isinstance(photo, str) or not photo.startswith('data:image/'):
-                return jsonify({'error': 'Formato de foto invalido'}), 400
+                continue
             if len(photo) > MAX_PHOTO_CHARS:
-                return jsonify({'error': 'Foto muito grande; reduza a qualidade/tamanho'}), 400
+                continue
             photos.append(photo)
 
         raw_elapsed = data.get('tempoRegistroSegundos', 0)
@@ -1538,16 +1631,16 @@ def add_accident():
         # Criar acidente
         accident = {
             'id': str(int(now_local_datetime().timestamp() * 1000)),
-            'municipioNotificacao': data['municipioNotificacao'].strip(),
-            'nomeNotificante': data['nomeNotificante'].strip(),
-            'endereco': data['endereco'].strip(),
+            'municipioNotificacao': municipio_notificacao,
+            'nomeNotificante': nome_notificante,
+            'endereco': endereco,
             'veiculoUsuario': ' | '.join(veiculo_usuario_values),
             'sinistroComVitimas': sinistro_com_vitimas,
             'quantidadeVitimas': quantidade_vitimas,
             'sinistroVitimas': sinistro_vitimas,
-            'equipamentosSeguranca': data['equipamentosSeguranca'].strip(),
-            'latitude': data['latitude'].strip(),
-            'longitude': data['longitude'].strip(),
+            'equipamentosSeguranca': equipamentos_seguranca,
+            'latitude': latitude,
+            'longitude': longitude,
             'descricao': registro_fora_local_descricao or str(data.get('descricao', '')).strip(),
             'registroNoLocalSinistro': registro_no_local_sinistro,
             'registroForaLocalDescricao': registro_fora_local_descricao,
