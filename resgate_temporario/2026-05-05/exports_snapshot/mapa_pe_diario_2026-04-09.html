@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mapa Diário de Acidentes - 2026-04-09</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    header { padding: 12px 16px; background: #0b3d91; color: #fff; }
+    #map { height: calc(100vh - 64px); width: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Mapa Diário de Acidentes - 2026-04-09</strong>
+    <div>Total de pontos: 4</div>
+  </header>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const map = L.map('map').setView([-8.3, -36.0], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const points = [{"lat": -8.05, "lon": -34.9, "endereco": "Rua Vinte e Quatro de Agosto, 209", "dataHora": "09/04/2026 10:15:40", "descricao": "", "nomeNotificante": "SES", "municipioNotificacao": "Recife", "veiculoUsuario": "A Pé | Motocicleta", "sinistroComVitimas": "Não", "quantidadeVitimas": "", "sinistroVitimas": "Sem vítimas"}, {"lat": -8.0631, "lon": -34.8711, "endereco": "Av. Agamenon Magalhães, 123, Recife-PE [TESTE]", "dataHora": "09/04/2026 11:14:02", "descricao": "Registro gerado automaticamente para validacao ponta-a-ponta.", "nomeNotificante": "TESTE_VALIDACAO", "municipioNotificacao": "Recife", "veiculoUsuario": "Motocicleta | Automóvel", "sinistroComVitimas": "Sim", "quantidadeVitimas": "2 vítimas ou mais com gravidade", "sinistroVitimas": "2 vítimas ou mais com gravidade"}, {"lat": -8.883868, "lon": -36.481247, "endereco": "Avenida Rui Barbosa", "dataHora": "09/04/2026 13:50:41", "descricao": "", "nomeNotificante": "Guarda municipal", "municipioNotificacao": "Garanhuns", "veiculoUsuario": "Automóvel", "sinistroComVitimas": "Não", "quantidadeVitimas": "", "sinistroVitimas": "Sem vítimas"}, {"lat": -8.906524, "lon": -36.485022, "endereco": "Av. Deolinda Silvestre Valença", "dataHora": "09/04/2026 17:19:54", "descricao": "", "nomeNotificante": "Guarda Municipal", "municipioNotificacao": "Garanhuns", "veiculoUsuario": "Automóvel | Motocicleta", "sinistroComVitimas": "Sim", "quantidadeVitimas": "1 vítima sem gravidade", "sinistroVitimas": "1 vítima sem gravidade"}];
+    const bounds = [];
+
+    points.forEach((p) => {
+      const marker = L.marker([p.lat, p.lon]).addTo(map);
+      marker.bindPopup(
+        `<b>${p.endereco || '-'}</b><br/>` +
+        `Data/Hora: ${p.dataHora || '-'}<br/>` +
+        `Município: ${p.municipioNotificacao || '-'}<br/>` +
+        `Notificante: ${p.nomeNotificante || '-'}<br/>` +
+        `Veículo/Usuário: ${p.veiculoUsuario || '-'}<br/>` +
+            `Sinistro com vítimas: ${p.sinistroComVitimas || '-'}<br/>` +
+            `Quantidade de vítimas: ${p.quantidadeVitimas || '-'}<br/>` +
+            `Vítimas: ${p.sinistroVitimas || '-'}`
+      );
+      bounds.push([p.lat, p.lon]);
+    });
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  </script>
+</body>
+</html>

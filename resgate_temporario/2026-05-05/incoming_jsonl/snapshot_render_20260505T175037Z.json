@@ -1,0 +1,22 @@
+{
+  "capturedAtUtc": "20260505T175037Z",
+  "base": "https://observatrafego-jx4p.onrender.com",
+  "results": {
+    "/health": {
+      "ok": false,
+      "error": "HTTP Error 503: Service Unavailable"
+    },
+    "/version": {
+      "ok": true,
+      "status": 200,
+      "data": {
+        "version": "1.0.3"
+      }
+    },
+    "/api/accidents": {
+      "ok": true,
+      "status": 200,
+      "data": []
+    }
+  }
+}

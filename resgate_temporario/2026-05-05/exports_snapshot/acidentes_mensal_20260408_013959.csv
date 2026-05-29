@@ -1,0 +1,5 @@
+﻿id,periodo,data_hora_registro,municipio_notificacao,nome_notificante,endereco,veiculo_usuario,sinistro_com_vitimas,quantidade_vitimas,sinistro_vitimas,equipamentos_seguranca,latitude,longitude,quantidade_fotos,tempo_registro_segundos,tempo_registro_formatado
+1775520116188,2026-04,07/04/2026 00:01:56,Recife,Teste Final,"Av. Boa Viagem, 100",Motocicleta,Sim,1,1,Capacete,-8.112,-34.893,0,55,00h 00m 55s
+1775565478446,2026-04,07/04/2026 12:37:58,Recife,Verificacao Persistencia,"Rua Teste, 123",Automóvel,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,10,00h 00m 10s
+1775612399230,2026-04,08/04/2026 01:39:59,Recife,Teste Lista Global,Rua Persistencia,Automóvel,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,12,00h 00m 12s
+1775612399237,2026-04,08/04/2026 01:39:59,Recife,Teste Lista Global,Rua Persistencia,Automóvel,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,12,00h 00m 12s

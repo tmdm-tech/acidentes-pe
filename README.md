@@ -118,6 +118,10 @@ Para a versão nova funcionar no Render com persistência permanente:
 	- `SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key`
 	- `SUPABASE_TABLE=acidentes`
 	- `SUPABASE_BOOTSTRAP_LOCAL=true`
+	- `SUPABASE_STORAGE_SYNC_ENABLED=true` (opcional)
+	- `SUPABASE_STORAGE_BUCKET=nome-do-seu-bucket`
+	- `SUPABASE_STORAGE_PREFIX=observa-backup` (opcional)
+	- `SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS=300` (opcional)
 4. **Persistent Disk**
 	- Mount path: `/var/data`
 
@@ -141,6 +145,14 @@ No seu servico Web do Render:
 	- Value: `acidentes`
 	- Key: `SUPABASE_BOOTSTRAP_LOCAL`
 	- Value: `true`
+	- Key: `SUPABASE_STORAGE_SYNC_ENABLED`
+	- Value: `true`
+	- Key: `SUPABASE_STORAGE_BUCKET`
+	- Value: nome do bucket no Supabase Storage (exemplo: `acidentes-backup`)
+	- Key: `SUPABASE_STORAGE_PREFIX`
+	- Value: `observa-backup`
+	- Key: `SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS`
+	- Value: `300`
 	- Key: `ADMIN_ACCESS_KEY`
 	- Value: uma chave forte definida por voce
 5. Salve as variaveis.
@@ -154,6 +166,8 @@ Observacoes operacionais:
 - Se voce nao quiser mais esse comportamento depois da migracao inicial, pode trocar para `false`.
 
 Com isso, o app passa a gravar os registros no Supabase. O arquivo `accidents.json` continua existindo como cache/fallback local e as exportacoes CSV continuam sendo geradas pelo backend.
+
+Se `SUPABASE_STORAGE_SYNC_ENABLED=true`, os arquivos operacionais (JSON de espelho local e arquivos em `exports/`) tambem passam a ser enviados para o bucket no Supabase Storage.
 
 Fluxo recomendado em producao:
 
@@ -187,7 +201,12 @@ Exemplo esperado quando tudo estiver certo:
 		"supabaseConfigured": true,
 		"supabaseEnabled": true,
 		"supabaseHealthy": true,
-		"supabaseTable": "acidentes"
+		"supabaseTable": "acidentes",
+		"cloudStorageEnabled": true,
+		"cloudStorageBucket": "acidentes-backup",
+		"cloudStoragePrefix": "observa-backup",
+		"cloudStorageLastSyncAt": "22/05/2026 10:30:00",
+		"cloudStorageLastError": ""
 	},
 	"persistence": {
 		"dataDir": "/var/data",
@@ -204,6 +223,8 @@ Leitura rapida dos campos:
 - `supabaseEnabled: true` significa que o cliente foi criado no backend.
 - `supabaseHealthy: true` significa que a tabela respondeu com sucesso.
 - `isPersistent: true` significa que o disco local persistente tambem esta disponivel para cache/exportacoes.
+- `cloudStorageEnabled: true` significa que a sincronizacao para bucket esta ativa.
+- `cloudStorageLastError` vazio indica que a ultima sincronizacao nao reportou erro.
 
 Se `supabaseConfigured` estiver `false`, faltou configurar variaveis no Render.
 Se `supabaseEnabled` estiver `false`, normalmente ha problema de credencial ou inicializacao do cliente.
@@ -243,6 +264,17 @@ Esse endpoint e o mais direto para descobrir se o problema esta:
 - na configuracao das variaveis,
 - na conexao com o Supabase,
 - ou na tabela `acidentes`.
+
+### Endpoint de sincronizacao manual para bucket
+
+Foi adicionado o endpoint administrativo `POST /api/admin/cloud-storage-sync`.
+
+Uso:
+
+- Envie o header `X-Admin-Key` com o valor da sua `ADMIN_ACCESS_KEY`.
+- Opcionalmente envie `{ "force": true }` no body para forcar upload de todos os arquivos monitorados.
+
+Esse endpoint permite validar imediatamente a preparacao de transporte para armazenamento em nuvem.
 
 Antes do primeiro deploy com Supabase, crie a tabela executando o SQL do arquivo `supabase/acidentes_schema.sql` no SQL Editor do Supabase.
 

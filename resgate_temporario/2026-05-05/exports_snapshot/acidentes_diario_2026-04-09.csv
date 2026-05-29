@@ -1,0 +1,5 @@
+﻿id,periodo,data_hora_registro,municipio_notificacao,nome_notificante,endereco,veiculo_usuario,registro_no_local_sinistro,registro_fora_local_descricao,sinistro_com_vitimas,quantidade_vitimas,sinistro_vitimas,equipamentos_seguranca,latitude,longitude,quantidade_fotos,tempo_registro_segundos,tempo_registro_formatado
+1775740540794,2026-04-09,09/04/2026 10:15:40,Recife,SES,"Rua Vinte e Quatro de Agosto, 209",A Pé | Motocicleta,None,None,Não,,Sem vítimas,Capacete,-8.050000,-34.900000,1,3363,00h 56m 03s
+1775744042905,2026-04-09,09/04/2026 11:14:02,Recife,TESTE_VALIDACAO,"Av. Agamenon Magalhães, 123, Recife-PE [TESTE]",Motocicleta | Automóvel,Sim,,Sim,2 vítimas ou mais com gravidade,2 vítimas ou mais com gravidade,Capacete,-8.0631,-34.8711,0,42,00h 00m 42s
+1775753441371,2026-04-09,09/04/2026 13:50:41,Garanhuns,Guarda municipal,Avenida Rui Barbosa,Automóvel,Sim,,Não,,Sem vítimas,Cinto de segurança,-8.883868,-36.481247,2,266,00h 04m 26s
+1775765994442,2026-04-09,09/04/2026 17:19:54,Garanhuns,Guarda Municipal,Av. Deolinda Silvestre Valença,Automóvel | Motocicleta,Sim,,Sim,1 vítima sem gravidade,1 vítima sem gravidade,Não se aplica,-8.906524,-36.485022,5,453,00h 07m 33s

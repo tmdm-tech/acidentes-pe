@@ -3,6 +3,8 @@ from flask import Flask, request, jsonify, send_from_directory, send_file, Respo
 import json
 import os
 import csv
+import hashlib
+import mimetypes
 from datetime import datetime, date, timedelta
 import socket
 import threading
@@ -82,6 +84,25 @@ def _as_bool_env(name, default=False):
     return str(raw).strip().lower() in {'1', 'true', 'yes', 'on', 'sim'}
 
 
+def _as_int_env(name, default=0, minimum=0):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(str(raw).strip())
+    except Exception:
+        return default
+    return max(minimum, value)
+
+
+def _to_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on', 'sim'}
+
+
 def _can_use_directory(path):
     """Return True when path exists/is creatable and writable by current process."""
     try:
@@ -148,11 +169,20 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '').stri
 SUPABASE_TABLE = os.environ.get('SUPABASE_TABLE', 'acidentes').strip() or 'acidentes'
 SUPABASE_BOOTSTRAP_LOCAL = _as_bool_env('SUPABASE_BOOTSTRAP_LOCAL', default=True)
 SUPABASE_PAGE_SIZE = 1000
+SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', '').strip()
+SUPABASE_STORAGE_PREFIX = os.environ.get('SUPABASE_STORAGE_PREFIX', 'observa-backup').strip().strip('/')
+SUPABASE_STORAGE_SYNC_ENABLED = _as_bool_env('SUPABASE_STORAGE_SYNC_ENABLED', default=False)
+SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS = _as_int_env('SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS', default=300, minimum=15)
+SUPABASE_STORAGE_STATE_FILE = os.path.join(DATA_DIR, 'supabase_storage_sync_state.json')
 REALTIME_SUBSCRIBERS = []
 REALTIME_SUBSCRIBERS_LOCK = threading.Lock()
 LOCAL_SUPABASE_SYNC_INTERVAL_SECONDS = 30
 LAST_LOCAL_SUPABASE_SYNC_AT = 0.0
 LOCAL_SUPABASE_SYNC_LOCK = threading.Lock()
+LAST_SUPABASE_STORAGE_SYNC_AT = 0.0
+SUPABASE_STORAGE_SYNC_LOCK = threading.Lock()
+SUPABASE_STORAGE_DISPATCH_LOCK = threading.Lock()
+SUPABASE_STORAGE_SYNC_RUNNING = False
 
 if DATA_ENCRYPTION_ENABLED and Fernet is None:
     print('[WARN] DATA_ENCRYPTION_KEY definida, mas cryptography nao esta disponivel. Criptografia desativada.')
@@ -180,6 +210,9 @@ if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and create_client is not None:
 else:
     SUPABASE_CLIENT = None
 
+if SUPABASE_STORAGE_SYNC_ENABLED and not SUPABASE_STORAGE_BUCKET:
+    print('[WARN] SUPABASE_STORAGE_SYNC_ENABLED=true, mas SUPABASE_STORAGE_BUCKET nao foi configurado. Sincronizacao de arquivos desativada.')
+
 
 def validate_persistence_mode():
     if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT and not supabase_enabled():
@@ -197,8 +230,63 @@ def supabase_configured():
     return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
 
 
+def supabase_storage_enabled():
+    return bool(
+        supabase_enabled()
+        and SUPABASE_STORAGE_SYNC_ENABLED
+        and SUPABASE_STORAGE_BUCKET
+    )
+
+
 def storage_mode_label():
     return 'supabase' if supabase_enabled() else 'local-json'
+
+
+def read_supabase_storage_state():
+    ensure_exports_dir()
+    if not os.path.exists(SUPABASE_STORAGE_STATE_FILE):
+        return {'lastSyncAt': '', 'lastError': '', 'files': {}}
+    try:
+        with open(SUPABASE_STORAGE_STATE_FILE, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+            if not isinstance(payload, dict):
+                return {'lastSyncAt': '', 'lastError': '', 'files': {}}
+            files_state = payload.get('files', {})
+            if not isinstance(files_state, dict):
+                files_state = {}
+            return {
+                'lastSyncAt': str(payload.get('lastSyncAt', '')).strip(),
+                'lastError': str(payload.get('lastError', '')).strip(),
+                'files': files_state,
+            }
+    except Exception:
+        return {'lastSyncAt': '', 'lastError': '', 'files': {}}
+
+
+def write_supabase_storage_state(state):
+    ensure_exports_dir()
+    payload = {
+        'lastSyncAt': str(state.get('lastSyncAt', '')).strip(),
+        'lastError': str(state.get('lastError', '')).strip(),
+        'files': state.get('files', {}) if isinstance(state.get('files', {}), dict) else {},
+    }
+    with open(SUPABASE_STORAGE_STATE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    secure_file_permissions(SUPABASE_STORAGE_STATE_FILE)
+
+
+def get_supabase_storage_diagnostics():
+    state = read_supabase_storage_state()
+    return {
+        'configured': bool(SUPABASE_STORAGE_BUCKET),
+        'enabled': supabase_storage_enabled(),
+        'bucket': SUPABASE_STORAGE_BUCKET,
+        'prefix': SUPABASE_STORAGE_PREFIX,
+        'intervalSeconds': SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS,
+        'lastSyncAt': state.get('lastSyncAt', ''),
+        'lastError': state.get('lastError', ''),
+        'trackedFiles': len(state.get('files', {})),
+    }
 
 
 def get_supabase_diagnostics():
@@ -243,6 +331,163 @@ def get_supabase_diagnostics():
 def ensure_exports_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+
+def _file_sha256(file_path):
+    digest = hashlib.sha256()
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(64 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_fingerprint(file_path):
+    stat = os.stat(file_path)
+    checksum = _file_sha256(file_path)
+    return {
+        'size': int(stat.st_size),
+        'mtime': int(stat.st_mtime),
+        'sha256': checksum,
+    }
+
+
+def _cloud_sync_candidates():
+    candidates = [
+        ACCIDENTS_FILE,
+        ACCIDENTS_BAK_FILE,
+        EXPORT_STATE_FILE,
+        BACKUP_STATE_FILE,
+    ]
+    if os.path.isdir(EXPORTS_DIR):
+        for name in os.listdir(EXPORTS_DIR):
+            path = os.path.join(EXPORTS_DIR, name)
+            if os.path.isfile(path) and name.lower().endswith(('.csv', '.html', '.json')):
+                candidates.append(path)
+
+    unique = []
+    seen = set()
+    for item in candidates:
+        if item in seen:
+            continue
+        seen.add(item)
+        if os.path.isfile(item):
+            unique.append(item)
+    return unique
+
+
+def _cloud_remote_key(local_path):
+    rel = os.path.relpath(local_path, DATA_DIR)
+    rel = rel.replace('\\', '/').lstrip('./')
+    if rel.startswith('..'):
+        rel = os.path.basename(local_path)
+    if SUPABASE_STORAGE_PREFIX:
+        return f'{SUPABASE_STORAGE_PREFIX}/{rel}'.replace('//', '/')
+    return rel
+
+
+def _upload_to_supabase_storage(local_path, remote_key):
+    content_type = mimetypes.guess_type(local_path)[0] or 'application/octet-stream'
+    with open(local_path, 'rb') as f:
+        payload = f.read()
+
+    bucket = SUPABASE_CLIENT.storage.from_(SUPABASE_STORAGE_BUCKET)
+    bucket.upload(
+        remote_key,
+        payload,
+        file_options={
+            'upsert': 'true',
+            'content-type': content_type,
+        },
+    )
+
+
+def sync_files_to_supabase_storage(force=False):
+    if not supabase_storage_enabled():
+        return {'enabled': False, 'uploaded': 0, 'checked': 0, 'skipped': 0}
+
+    global LAST_SUPABASE_STORAGE_SYNC_AT
+    now_ts = time.time()
+    with SUPABASE_STORAGE_SYNC_LOCK:
+        if not force and (now_ts - LAST_SUPABASE_STORAGE_SYNC_AT) < SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS:
+            return {'enabled': True, 'uploaded': 0, 'checked': 0, 'skipped': 0, 'reason': 'throttled'}
+        LAST_SUPABASE_STORAGE_SYNC_AT = now_ts
+
+    state = read_supabase_storage_state()
+    files_state = state.get('files', {}) if isinstance(state.get('files', {}), dict) else {}
+    candidates = _cloud_sync_candidates()
+    uploaded = 0
+    skipped = 0
+    last_error = ''
+
+    for file_path in candidates:
+        rel = os.path.relpath(file_path, DATA_DIR).replace('\\', '/')
+        previous = files_state.get(rel, {}) if isinstance(files_state.get(rel, {}), dict) else {}
+        try:
+            fingerprint = _file_fingerprint(file_path)
+        except Exception as exc:
+            last_error = f'Falha ao ler arquivo para sync: {rel} ({exc})'
+            continue
+
+        if not force and previous.get('sha256') == fingerprint.get('sha256'):
+            skipped += 1
+            continue
+
+        remote_key = _cloud_remote_key(file_path)
+        try:
+            _upload_to_supabase_storage(file_path, remote_key)
+            uploaded += 1
+            files_state[rel] = {
+                **fingerprint,
+                'remoteKey': remote_key,
+                'uploadedAt': now_local_datetime().strftime('%d/%m/%Y %H:%M:%S'),
+            }
+        except Exception as exc:
+            last_error = _safe_error_excerpt(exc)
+
+    state_payload = {
+        'lastSyncAt': now_local_datetime().strftime('%d/%m/%Y %H:%M:%S'),
+        'lastError': last_error,
+        'files': files_state,
+    }
+    write_supabase_storage_state(state_payload)
+
+    return {
+        'enabled': True,
+        'bucket': SUPABASE_STORAGE_BUCKET,
+        'prefix': SUPABASE_STORAGE_PREFIX,
+        'uploaded': uploaded,
+        'checked': len(candidates),
+        'skipped': skipped,
+        'lastError': last_error,
+    }
+
+
+def trigger_supabase_storage_sync_async(force=False):
+    if not supabase_storage_enabled():
+        return {'enabled': False, 'scheduled': False}
+
+    global SUPABASE_STORAGE_SYNC_RUNNING
+    with SUPABASE_STORAGE_DISPATCH_LOCK:
+        if SUPABASE_STORAGE_SYNC_RUNNING:
+            return {'enabled': True, 'scheduled': False, 'reason': 'running'}
+        SUPABASE_STORAGE_SYNC_RUNNING = True
+
+    def _job():
+        global SUPABASE_STORAGE_SYNC_RUNNING
+        try:
+            sync_files_to_supabase_storage(force=force)
+        except Exception as exc:
+            print(f'[WARN] Falha ao sincronizar arquivos para Supabase Storage: {exc}')
+        finally:
+            with SUPABASE_STORAGE_DISPATCH_LOCK:
+                SUPABASE_STORAGE_SYNC_RUNNING = False
+
+    thread = threading.Thread(target=_job, daemon=True)
+    thread.start()
+    return {'enabled': True, 'scheduled': True, 'force': bool(force)}
 
 
 def secure_file_permissions(file_path):
@@ -443,6 +688,7 @@ def _local_save_accidents(accidents):
 
     os.replace(tmp_file, ACCIDENTS_FILE)
     secure_file_permissions(ACCIDENTS_FILE)
+    trigger_supabase_storage_sync_async(force=False)
 
 
 def _supabase_record_from_accident(accident):
@@ -1104,6 +1350,7 @@ def ensure_scheduled_daily_exports(accidents):
 
     if generated:
         write_export_state({'lastGeneratedFor': daily_date_label(last_date)})
+        trigger_supabase_storage_sync_async(force=False)
 
     return {
         'generated': generated,
@@ -1210,11 +1457,13 @@ def write_export_csv(period, accidents):
 
 def generate_all_exports(accidents):
     ensure_scheduled_daily_exports(accidents)
-    return {
+    payload = {
         'daily': write_export_csv('daily', accidents),
         'weekly': write_export_csv('weekly', accidents),
         'monthly': write_export_csv('monthly', accidents)
     }
+    trigger_supabase_storage_sync_async(force=False)
+    return payload
 
 def load_accidents():
     local_records = _local_load_accidents()
@@ -1262,6 +1511,7 @@ def index():
 @app.route('/health')
 def health():
     supabase_diag = get_supabase_diagnostics()
+    cloud_diag = get_supabase_storage_diagnostics()
     supabase_ready = True
     if supabase_diag['configured']:
         supabase_ready = bool(supabase_diag['healthy'])
@@ -1279,7 +1529,12 @@ def health():
             'supabaseEnabled': supabase_enabled(),
             'supabaseHealthy': supabase_diag['healthy'],
             'supabaseTable': SUPABASE_TABLE if supabase_configured() else '',
-            'supabaseError': supabase_diag['error'] if supabase_diag['configured'] else ''
+            'supabaseError': supabase_diag['error'] if supabase_diag['configured'] else '',
+            'cloudStorageEnabled': cloud_diag['enabled'],
+            'cloudStorageBucket': cloud_diag['bucket'] if cloud_diag['configured'] else '',
+            'cloudStoragePrefix': cloud_diag['prefix'] if cloud_diag['configured'] else '',
+            'cloudStorageLastSyncAt': cloud_diag['lastSyncAt'],
+            'cloudStorageLastError': cloud_diag['lastError'],
         },
         'persistence': {
             'dataDir': DATA_DIR,
@@ -1482,12 +1737,29 @@ def admin_supabase_status():
         return require_admin_response()
 
     diagnostics = get_supabase_diagnostics()
+    storage_cloud = get_supabase_storage_diagnostics()
     http_status = 200 if diagnostics['healthy'] or not diagnostics['configured'] else 503
     return jsonify({
         'success': diagnostics['healthy'],
         'storageMode': storage_mode_label(),
         'diagnostics': diagnostics,
+        'cloudStorage': storage_cloud,
     }), http_status
+
+
+@app.route('/api/admin/cloud-storage-sync', methods=['POST'])
+def admin_cloud_storage_sync():
+    if not is_admin_request():
+        return require_admin_response()
+
+    force = False
+    payload = request.get_json(silent=True) or {}
+    if isinstance(payload, dict):
+        force = _to_bool(payload.get('force'), default=False)
+
+    result = sync_files_to_supabase_storage(force=force)
+    status = 200 if result.get('enabled') else 503
+    return jsonify({'success': bool(result.get('enabled')), 'sync': result}), status
 
 @app.route('/api/accidents', methods=['POST'])
 def add_accident():
@@ -1726,6 +1998,12 @@ def _background_startup_tasks():
         ensure_scheduled_daily_exports(load_accidents())
     except Exception as exc:
         print(f'[WARN] Falha na geracao inicial de exportacoes: {exc}')
+
+    if supabase_storage_enabled():
+        try:
+            sync_files_to_supabase_storage(force=True)
+        except Exception as exc:
+            print(f'[WARN] Falha na sincronizacao inicial de arquivos para Supabase Storage: {exc}')
 
 try:
     start_daily_scheduler()

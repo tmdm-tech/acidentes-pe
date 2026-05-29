@@ -6,3 +6,15 @@ cryptography==42.0.8
 qrcode==7.4.2
 Pillow==10.4.0
 supabase==2.15.3
+numpy==1.26.4
+pandas==2.2.2
+matplotlib==3.8.4
+scipy==1.13.1
+geopandas==0.14.4
+shapely==2.0.4
+pyproj==3.6.1
+fiona==1.9.6
+rasterio==1.3.10
+contextily==1.6.0
+xyzservices==2024.4.0
+geobr==0.2.2

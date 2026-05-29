@@ -1,0 +1,13 @@
+{
+  "periodo": {
+    "inicio": "2026-04-21",
+    "fim": "2026-05-05"
+  },
+  "geradoEmUtc": "20260505T175037Z",
+  "fonteLocalRecorteJson": "resgate_periodo_2026-04-21_a_2026-05-05.json",
+  "fonteLocalRecorteJsonl": "resgate_periodo_2026-04-21_a_2026-05-05.jsonl",
+  "fonteRenderRecorte": "resgate_periodo_2026-04-21_a_2026-05-05.render.json",
+  "snapshotRender": "snapshot_render_20260505T175037Z.json",
+  "totalRenderApiAccidents": 0,
+  "observacao": "Render respondeu /api/accidents conforme snapshot. Supabase remoto não acessível por chave admin neste ambiente."
+}

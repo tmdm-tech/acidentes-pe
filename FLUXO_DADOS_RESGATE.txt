@@ -1,0 +1,159 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                FLUXO DE DADOS - SISTEMA DE RESGATE                        ║
+║                    A Partir de 05/05/2026 15:10 UTC                       ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+1️⃣  USUÁRIO REGISTRA ACIDENTE NO APP
+    ┌──────────────────────────────────┐
+    │  Flutter App (PWA/Capacitor)     │
+    │  POST /api/accidents com dados    │
+    └──────────────┬───────────────────┘
+                   │
+                   ▼
+2️⃣  CONNECTION COM SERVIDOR
+    ┌──────────────────────────────────┐
+    │  Render.com Server                │
+    │  observatrafegor-jx4p.onrender.com│
+    │  server.py : add_accident()       │
+    └──────────────┬───────────────────┘
+                   │
+                   ▼
+3️⃣  PROCESSAMENTO LOCAL
+    ┌────────────────────────────────────────────────────────────────┐
+    │ server.py : add_accident()                                      │
+    │                                                                 │
+    │  A. normalize_accident_record()                                │
+    │     └─> Valida e formata dados                                │
+    │                                                                 │
+    │  B. save_accidents() [EXISTENTE]                              │
+    │     └─> .../accidents.json (armazenamento principal)          │
+    │         ✓ Salvo em disk                                        │
+    │         ✓ Pronto para Render persistência                      │
+    │                                                                 │
+    │  C. save_temporary_incoming_record() [NOVO!] ← RESGATE        │
+    │     └─> .../resgate_temporario/{DATE}/incoming_jsonl/         │
+    │         accidents_incoming.jsonl                               │
+    │         ✓ Salvo imediatamente                                  │
+    │         ✓ Formato: 1 linha = 1 JSON completo                   │
+    │         ✓ Acumulativo (append, não sobrescreve)               │
+    │                                                                 │
+    │  D. supabase_sync() [EXISTENTE]                               │
+    │     └─> Tenta sincronizar com Supabase                        │
+    │         (Se falhar, continuará em próximo sync)               │
+    │                                                                 │
+    └────────────────┬──────────────────────────────────────────────┘
+                     │
+                     ▼
+4️⃣  RESULTADO: DADOS PRESERVADOS EM MÚLTIPLOS NÍVEIS
+    ┌───────────────────────────────────────────────────────────────┐
+    │ NÍVEL 1 - LOCAL (Render volume)                               │
+    │  ├─ /app/accidents.json                                       │
+    │  │  └─ Sincronizado entre requisições                        │
+    │  └─ /app/resgate_temporario/2026-05-06/incoming_jsonl/        │
+    │     └─ JSONL linha-a-linha (NOVO SISTEMA)                     │
+    │        ✓ Um backup físico do que chegou                       │
+    │        ✓ Recuperável digitando ID                             │
+    │                                                                 │
+    │ NÍVEL 2 - REMOTO (Supabase)                                   │
+    │  └─ izdubenyjyxhtooaaxzv.supabase.co                           │
+    │     └─ Tabela: acidentes                                      │
+    │        (Quando sync conseguir conectar)                       │
+    │                                                                 │
+    │ NÍVEL 3 - BACKUP (GitHub)                                     │
+    │  └─ tmdm-tech/acidentes-pe.git                                │
+    │     └─ Resgate vai pra /resgate_temporario/ quando fazer     │
+    │        commit periodicamente                                  │
+    │                                                                 │
+    └───────────────────────────────────────────────────────────────┘
+
+5️⃣  MONITORAMENTO EM TEMPO REAL
+    ┌─────────────────────────────────────────────────┐
+    │ Observe em Tempo Real:                          │
+    │                                                 │
+    │ $ tail -f resgate_temporario/2026-05-06/       │
+    │   incoming_jsonl/accidents_incoming.jsonl      │
+    │                                                 │
+    │ Cada nova linha = novo registro chegando ✓     │
+    │                                                 │
+    │ Ou use:                                         │
+    │ $ python3 verify_rescue_system.py              │
+    │                                                 │
+    └─────────────────────────────────────────────────┘
+
+6️⃣  EXEMPLO DE REGISTRO NO JSONL
+    ┌──────────────────────────────────────────────────────────────┐
+    │ Arquivo: accidents_incoming.jsonl                            │
+    │ Conteúdo (1 linha = 1 registro):                             │
+    │                                                              │
+    │ {"id":"1775821782118","municipioNotificacao":"Garanhuns",   │
+    │  "nomeNotificante":"João Silva","endereco":"Rua...",        │
+    │  "veiculoUsuario":"Motocicleta","sinistroComVitimas":"Sim", │
+    │  "quantidadeVitimas":"1",...}                               │
+    │ {"id":"1775821782119","municipioNotificacao":"Recife",...}  │
+    │ {"id":"1775821782120",...}                                  │
+    │                                                              │
+    │ Vantagens:                                                   │
+    │ ✓ Um registro por linha                                      │
+    │ ✓ Fácil de buscar (grep)                                    │
+    │ ✓ Fácil de contar (wc -l)                                    │
+    │ ✓ Importável em batch (jq, pandas, S3)                      │
+    │ ✓ Auditável (cada linha = um evento)                        │
+    └──────────────────────────────────────────────────────────────┘
+
+7️⃣  CENÁRIOS COBERTOS
+    ┌────────────────────────────────────────────────────────────┐
+    │ ✅ App envia registro                                      │
+    │    → SALVO em JSONL imediatamente                          │
+    │                                                             │
+    │ ✅ Supabase connection fails (network down)                │
+    │    → JSONL preserva cópia, sync tenta depois               │
+    │                                                             │
+    │ ✅ Render server reinicia                                  │
+    │    → JSONL persiste em volume                              │
+    │    → Arquivo não é perdido                                 │
+    │                                                             │
+    │ ✅ Múltiplos registros chegam rápido                       │
+    │    → Todos acumulam em JSONL                               │
+    │    → Ordem preservada por timestamp de requisição          │
+    │                                                             │
+    │ ✅ Período de coleta termina                               │
+    │    → /resgate_temporario/2026-05-06/ completo              │
+    │    → Pronto para batch import pra Supabase/Archive         │
+    │                                                             │
+    └────────────────────────────────────────────────────────────┘
+
+8️⃣  GARANTIA DE SEGURANÇA
+    ┌──────────────────────────────────────────────────────────┐
+    │ Nenhum registro será perdido porque:                     │
+    │                                                           │
+    │ 1. JSONL é escrito ANTES de Supabase                     │
+    │    → Supabase falhar não afeta local                     │
+    │                                                           │
+    │ 2. Render volume persiste entre restarts                 │
+    │    → Dados não ficam em memória                          │
+    │                                                           │
+    │ 3. Arquivo append-only                                   │
+    │    → Não sobrescreve histórico                           │
+    │    → Idempotente                                         │
+    │                                                           │
+    │ 4. Estrutura diária por data                             │
+    │    → 366 pastas = 1 ano de dados                         │
+    │    → Fácil fazer busca temporal                          │
+    │                                                           │
+    │ 5. Permissões de arquivo configuradas                    │
+    │    → Protegido contra acesso indevido                    │
+    │                                                           │
+    └──────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║ RESUMO:                                                                    ║
+║ ✅ Sistema ativo e pronto                                                 ║
+║ ✅ Cada registro é salvo IMEDIATAMENTE em JSONL                           ║
+║ ✅ Redundância em 3 níveis (local, remoto, GitHub)                        ║
+║ ✅ Recuperável por ID, data, município                                    ║
+║ ✅ Auditável e rastreável                                                 ║
+║                                                                            ║
+║ 🎯 OBJETIVO: Zero perda de dados                                          ║
+║ 📍 LOCALIZAÇÃO: /resgate_temporario/{date}/incoming_jsonl/                ║
+║ 📊 FORMATO: JSONL (1 linha = 1 acidente)                                  ║
+╚════════════════════════════════════════════════════════════════════════════╝

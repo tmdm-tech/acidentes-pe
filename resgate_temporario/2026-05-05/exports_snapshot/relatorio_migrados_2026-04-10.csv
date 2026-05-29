@@ -1,0 +1,6 @@
+﻿id,dataHora,municipioNotificacao,nomeNotificante,veiculoUsuario,tempoRegistroSegundos,sinistroVitimas,equipamentosSeguranca,latitude,longitude
+1775520116188,07/04/2026 00:01:56,Recife,Teste Final,Motocicleta,55,1,Capacete,-8.112,-34.893
+1775565478446,07/04/2026 12:37:58,Recife,Verificacao Persistencia,Automóvel,10,Sem vítimas,Cinto de segurança,-8.05,-34.90
+1775612399230,08/04/2026 01:39:59,Recife,Teste Lista Global,Automóvel,12,Sem vítimas,Cinto de segurança,-8.05,-34.90
+1775612399237,08/04/2026 01:39:59,Recife,Teste Lista Global,Automóvel,12,Sem vítimas,Cinto de segurança,-8.05,-34.90
+1775614686758,07/04/2026 23:18:06,Recife,Teste Fuso,Automóvel,5,Sem vítimas,Cinto de segurança,-8.05,-34.90

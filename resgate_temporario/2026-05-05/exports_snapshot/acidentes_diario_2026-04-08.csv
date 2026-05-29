@@ -1,0 +1,4 @@
+﻿id,periodo,data_hora_registro,municipio_notificacao,nome_notificante,endereco,veiculo_usuario,registro_no_local_sinistro,registro_fora_local_descricao,sinistro_com_vitimas,quantidade_vitimas,sinistro_vitimas,equipamentos_seguranca,latitude,longitude,quantidade_fotos,tempo_registro_segundos,tempo_registro_formatado
+1775612399230,2026-04-08,08/04/2026 01:39:59,Recife,Teste Lista Global,Rua Persistencia,Automóvel,,,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,12,00h 00m 12s
+1775612399237,2026-04-08,08/04/2026 01:39:59,Recife,Teste Lista Global,Rua Persistencia,Automóvel,,,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,12,00h 00m 12s
+1775614686758,2026-04-08,07/04/2026 23:18:06,Recife,Teste Fuso,Rua Fuso,Automóvel,,,Não,,Sem vítimas,Cinto de segurança,-8.05,-34.90,0,5,00h 00m 05s

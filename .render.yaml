@@ -11,6 +11,14 @@ services:
         value: /var/data
       - key: REQUIRE_PERSISTENT_STORAGE
         value: "false"
+      - key: SUPABASE_STORAGE_SYNC_ENABLED
+        value: "false"
+      - key: SUPABASE_STORAGE_BUCKET
+        value: ""
+      - key: SUPABASE_STORAGE_PREFIX
+        value: "observa-backup"
+      - key: SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS
+        value: "300"
     disk:
       name: acidentes-pe-data
       mountPath: /var/data

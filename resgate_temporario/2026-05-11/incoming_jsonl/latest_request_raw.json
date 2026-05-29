@@ -1,0 +1,12 @@
+{
+  "receivedAt": "11/05/2026 09:47:48",
+  "receivedAtIso": "2026-05-11T09:47:48.355048-03:00",
+  "path": "/api/accidents",
+  "method": "POST",
+  "contentType": "application/json",
+  "remoteAddr": "127.0.0.1",
+  "userAgent": "Werkzeug/2.3.7",
+  "parseOk": false,
+  "error": "JSON inválido ou payload não-objeto",
+  "payload": "{\"foo\":"
+}
