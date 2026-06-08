@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ObservaATT PE</title>
+  <meta name="theme-color" content="#1d4ed8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ObservaATT PE">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" sizes="192x192" href="/launcher-home-v9-192.png?v=9">
+  <link rel="apple-touch-icon" href="/launcher-home-v9-192.png?v=9">
+  <link rel="manifest" href="/manifest.json?v=observaatt-pe-v13">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+  <style>
+    :root {
+      --azul-escuro: #0b2f8a;
+      --azul-claro: #60a5fa;
+      --turquesa: #14b8a6;
+      --verde-escuro: #166534;
+      --verde-claro: #4ade80;
+      --amarelo: #facc15;
+      --laranja: #f97316;
+      --vermelho: #dc2626;
+      --azul: #0b2f8a;
+      --verde: #166534;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --ok: #166534;
+      --danger: #dc2626;
+      --line: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(11, 47, 138, 0.34), transparent 32%),
+        radial-gradient(circle at 82% 18%, rgba(96, 165, 250, 0.3), transparent 34%),
+        radial-gradient(circle at 84% 52%, rgba(20, 184, 166, 0.28), transparent 30%),
+        radial-gradient(circle at 76% 84%, rgba(22, 101, 52, 0.28), transparent 34%),
+        radial-gradient(circle at 48% 88%, rgba(74, 222, 128, 0.28), transparent 32%),
+        radial-gradient(circle at 22% 82%, rgba(250, 204, 21, 0.28), transparent 32%),
+        radial-gradient(circle at 16% 58%, rgba(249, 115, 22, 0.26), transparent 30%),
+        radial-gradient(circle at 12% 34%, rgba(220, 38, 38, 0.24), transparent 28%),
+        linear-gradient(150deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -20% -10% auto -10%;
+      height: 55vh;
+      background: linear-gradient(115deg, rgba(11, 47, 138, 0.2), rgba(96, 165, 250, 0.2), rgba(20, 184, 166, 0.2), rgba(22, 101, 52, 0.2), rgba(74, 222, 128, 0.2), rgba(250, 204, 21, 0.2), rgba(249, 115, 22, 0.2), rgba(220, 38, 38, 0.2));
+      filter: blur(46px);
+      pointer-events: none;
+      z-index: -1;
+      animation: floatGlow 8s ease-in-out infinite;
+    }
+
+    .hero {
+      background: linear-gradient(115deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
+      color: #fff;
+      padding: 32px 18px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3.8vw, 2.3rem);
+      letter-spacing: 0.4px;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      opacity: 0.94;
+      font-size: 1rem;
+    }
+
+    .palette {
+      margin: 12px auto 0;
+      width: min(420px, 90%);
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--azul-escuro), var(--azul-claro), var(--turquesa), var(--verde-escuro), var(--verde-claro), var(--amarelo), var(--laranja), var(--vermelho));
+      border: 1px solid rgba(255, 255, 255, 0.65);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px 28px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+      animation: riseIn 0.55s ease-out both;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
+      transition: transform 0.28s ease, box-shadow 0.28s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(2, 6, 23, 0.1);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.2rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    textarea { min-height: 90px; resize: vertical; }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--verde);
+    }
+
+    button.secondary {
+      background: var(--azul);
+    }
+
+    button.warn {
+      background: var(--vermelho);
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      min-height: 20px;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.error { color: var(--danger); }
+
+    .status.warn { color: #b45309; }
+
+    .photo-help {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .photo-tabs {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .photo-tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #e2e8f0;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      font-weight: 700;
+    }
+
+    .photo-tab[aria-selected="true"] {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #1d4ed8;
+    }
+
+    .photo-panel {
+      margin-top: 8px;
+    }
+
+    .photo-panel[hidden] {
+      display: none;
+    }
+
+    .photo-input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .install-banner {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: linear-gradient(115deg, var(--azul-escuro) 0%, var(--azul-claro) 14%, var(--turquesa) 28%, var(--verde-escuro) 42%, var(--verde-claro) 56%, var(--amarelo) 70%, var(--laranja) 84%, var(--vermelho) 100%);
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.2);
+    }
+
+    .install-banner[hidden] { display: none; }
+
+    .install-banner p {
+      margin: 0;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .install-banner .banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .install-banner button {
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      font-weight: 700;
+      border: 2px solid rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .install-banner button:hover {
+      background: rgba(255,255,255,0.38);
+    }
+
+    .install-banner button.btn-primary-install {
+      background: rgba(255,255,255,0.92);
+      color: #1d4ed8;
+    }
+
+    .update-banner {
+      position: sticky;
+      top: 0;
+      z-index: 1001;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.24);
+    }
+
+    .update-banner[hidden] { display: none; }
+
+    .update-banner p {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .update-banner button {
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      font-weight: 700;
+      border: 0;
+      background: #facc15;
+      color: #111827;
+      cursor: pointer;
+    }
+
+    .install-box {
+      background: #fff;
+      border: 1px dashed #93c5fd;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .install-box p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #334155;
+    }
+
+    .timer-chip {
+      display: inline-block;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      white-space: nowrap;
+    }
+
+    .stream-status {
+      margin: 0 0 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .stream-status.connected {
+      border-color: #86efac;
+      background: #f0fdf4;
+      color: #166534;
+    }
+
+    .stream-status.connecting {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .stream-status.offline {
+      border-color: #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+    }
+
+    .choice-group {
+      margin: 0;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .choice-group legend {
+      padding: 0 6px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .choice-help {
+      display: block;
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 12px;
+    }
+
+    .choice-grid.vehicles-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .choice-grid.victims-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .choice-scroll {
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .choice-option {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      font-size: 0.92rem;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    .choice-option input {
+      margin: 3px 0 0;
+    }
+
+    .choice-option span {
+      display: block;
+      line-height: 1.25;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    @media (max-width: 1100px) {
+      .choice-grid.vehicles-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .choice-grid.vehicles-grid,
+      .choice-grid.victims-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .choice-scroll {
+        max-height: 260px;
+      }
+    }
+
+    .preview-grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+    }
+
+    .preview-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f8fafc;
+      aspect-ratio: 1 / 1;
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumbs {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      min-width: 88px;
+    }
+
+    .thumb {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      object-fit: cover;
+      display: block;
+      background: #f8fafc;
+    }
+
+    .thumb-count {
+      font-size: 0.77rem;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .map-box {
+      margin-top: 6px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f8fafc;
+      position: relative;
+    }
+
+    .map-caption {
+      font-size: 0.83rem;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    #pe-map {
+      width: 100%;
+      height: 260px;
+      display: block;
+      background: #dbeafe;
+    }
+
+    #pe-map.map-loading {
+      background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 50%, #dbeafe 100%);
+      background-size: 220% 100%;
+      animation: mapLoading 1.2s linear infinite;
+    }
+
+    @keyframes mapLoading {
+      from { background-position: 0% 0; }
+      to { background-position: 220% 0; }
+    }
+
+    .map-live {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 500;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #1e3a8a;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      border-radius: 999px;
+      margin-right: 6px;
+      background: #dc2626;
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+      animation: pulse 1.3s infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+      70% { box-shadow: 0 0 0 9px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+
+    .stopwatch {
+      margin-top: 12px;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      background: #eff6ff;
+      padding: 10px;
+    }
+
+    .stopwatch h3 {
+      margin: 0 0 6px;
+      font-size: 0.96rem;
+      color: #1e3a8a;
+    }
+
+    .stopwatch-time {
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: #1e3a8a;
+    }
+
+    .offline-chip {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #ffedd5;
+      color: #9a3412;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 8px 0;
+      font-size: 0.95rem;
+    }
+
+    .export-bar {
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pagination {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .page-info {
+      font-size: 0.9rem;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-left: 8px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.76rem;
+      color: #1e3a8a;
+      background: #dbeafe;
+      border: 1px solid #bfdbfe;
+      font-weight: 700;
+    }
+
+    .app-footer {
+      max-width: 1000px;
+      margin: 0 auto 20px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 22px rgba(2, 6, 23, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 0.81rem;
+      color: #475569;
+      line-height: 1.35;
+    }
+
+    .app-footer .brand {
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .app-footer .address {
+      text-align: center;
+      font-weight: 500;
+      letter-spacing: 0.1px;
+    }
+
+    .page-submit-bar {
+      max-width: 1000px;
+      margin: 0 auto 14px;
+      padding: 0 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .page-submit-bar button {
+      min-width: min(460px, 100%);
+      font-size: 1rem;
+      padding: 12px 16px;
+      background: #15803d;
+      border: 1px solid #166534;
+      box-shadow: 0 6px 14px rgba(2, 6, 23, 0.16);
+    }
+
+    @keyframes floatGlow {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(0, 16px, 0) scale(1.03); }
+      100% { transform: translate3d(0, 0, 0) scale(1); }
+    }
+
+    @keyframes riseIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      th:nth-child(3), td:nth-child(3),
+      th:nth-child(4), td:nth-child(4) {
+        display: none;
+      }
+
+      .app-footer {
+        padding: 10px;
+        font-size: 0.79rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="update-banner" class="update-banner" hidden>
+    <p id="update-banner-text">Nova versao detectada. Atualizando o app...</p>
+    <button type="button" id="btn-update-reload">Atualizar agora</button>
+  </div>
+
+  <!-- Banner de instalação sticky no topo -->
+  <div id="install-banner" class="install-banner">
+    <p>📲 Instale o ObservaATT PE no seu celular!</p>
+    <div class="banner-actions">
+      <button type="button" class="btn-primary-install" id="btn-banner-install" style="display:none">Instalar agora</button>
+      <button type="button" id="btn-banner-help">📖 Como instalar</button>
+      <button type="button" id="btn-banner-close" aria-label="Fechar">✕</button>
+    </div>
+  </div>
+
+  <header class="hero">
+    <h1><img src="/launcher-home-v9-192.png?v=9" alt="Icone do app" width="30" height="30" style="vertical-align:middle; margin-right:8px; border-radius:8px;">ObservaATT PE</h1>
+    <p>Sinistros com Registro Centralizado</p>
+    <div class="palette" aria-hidden="true"></div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Novo sinistro</h2>
+      <form id="accident-form">
+        <div class="grid">
+          <div class="field">
+            <label for="municipioNotificacao">Município de notificação</label>
+            <input id="municipioNotificacao" required>
+          </div>
+          <div class="field">
+            <label for="nomeNotificante">Instituição notificadora</label>
+            <input id="nomeNotificante" required>
+          </div>
+          <div class="field full">
+            <label for="endereco">Endereço do sinistro</label>
+            <input id="endereco" required>
+          </div>
+          <div class="field full">
+            <fieldset class="choice-group" id="veiculoUsuarioGroup">
+              <legend>Veículo/Usuário</legend>
+              <span class="choice-help">Marque uma ou mais opções.</span>
+              <div class="choice-grid vehicles-grid choice-scroll">
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="A Pé"><span>A Pé</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel"><span>Automóvel</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Automóvel por aplicativo"><span>Automóvel por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta"><span>Motocicleta</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Motocicleta por aplicativo"><span>Motocicleta por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta"><span>Bicicleta</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Bicicleta por aplicativo"><span>Bicicleta por aplicativo</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ônibus/Similar"><span>Ônibus/Similar</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo pesado"><span>Veículo pesado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ambulância/SAMU"><span>Ambulância/SAMU</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Resgate"><span>Resgate</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Veículo de tração animal"><span>Veículo de tração animal</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Animal montado"><span>Animal montado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Ignorado"><span>Ignorado</span></label>
+                <label class="choice-option"><input type="checkbox" name="veiculoUsuario" value="Outro"><span>Outro</span></label>
+              </div>
+            </fieldset>
+          </div>
+          <div class="field">
+            <label for="sinistroComVitimas">Sinistro com vítimas</label>
+            <select id="sinistroComVitimas" required>
+              <option value="">Selecione</option>
+              <option>Sim</option>
+              <option>Não</option>
+            </select>
+          </div>
+          <div class="field full" id="quantidadeVitimasField" hidden>
+            <fieldset class="choice-group" id="quantidadeVitimasGroup">
+              <legend>Perfil das vítimas</legend>
+              <span class="choice-help">Marque uma ou mais opções.</span>
+              <div class="choice-grid victims-grid">
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima sem gravidade"><span>1 vítima sem gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="1 vítima com gravidade"><span>1 vítima com gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais sem gravidade"><span>2 vítimas ou mais sem gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="2 vítimas ou mais com gravidade"><span>2 vítimas ou mais com gravidade</span></label>
+                <label class="choice-option"><input type="checkbox" name="quantidadeVitimas" value="Vítima fatal"><span>Vítima fatal</span></label>
+              </div>
+            </fieldset>
+          </div>
+          <div class="field full">
+            <label for="equipamentosSeguranca">Equipamentos de segurança em uso</label>
+            <select id="equipamentosSeguranca" required>
+              <option value="">Selecione</option>
+              <option>Cinto de segurança</option>
+              <option>Capacete</option>
+              <option>Nenhum equipamento em uso</option>
+              <option>Não se aplica</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="latitude">Latitude</label>
+            <input id="latitude" required>
+          </div>
+          <div class="field">
+            <label for="longitude">Longitude</label>
+            <input id="longitude" required>
+          </div>
+          <div class="field full">
+            <label>Mapa de Pernambuco em tempo real</label>
+            <div class="map-box">
+              <div id="pe-map" class="map-loading" aria-label="Mapa de Pernambuco"></div>
+              <div class="map-live"><span class="live-dot"></span>tempo real</div>
+            </div>
+            <div class="map-caption">Clique no mapa para ajustar o ponto de marcação ou use o GPS para centralizar sua posição atual.</div>
+            <div class="stopwatch">
+              <h3>Cronometro do registro em andamento</h3>
+              <div id="live-timer" class="stopwatch-time">00h 00m 00s</div>
+            </div>
+          </div>
+          <div class="field full">
+            <label for="registroNoLocalSinistro">Este registro está sendo feito no local do sinistro?</label>
+            <select id="registroNoLocalSinistro" required>
+              <option value="">Selecione</option>
+              <option>Sim</option>
+              <option>Não</option>
+            </select>
+          </div>
+          <div class="field full" id="registroForaLocalDescricaoField" hidden>
+            <label for="registroForaLocalDescricao">Breve descrição</label>
+            <textarea id="registroForaLocalDescricao" rows="3" placeholder="Descreva brevemente de onde ou como este registro está sendo realizado."></textarea>
+          </div>
+          <div class="field full">
+            <label for="fotos">Fotos do sinistro</label>
+            <div class="photo-tabs" role="tablist" aria-label="Selecao de fotos">
+              <button type="button" id="tab-gallery" class="photo-tab" role="tab" aria-controls="panel-gallery" aria-selected="true">🖼 Selecionar fotos da galeria</button>
+              <button type="button" id="tab-camera" class="photo-tab" role="tab" aria-controls="panel-camera" aria-selected="false">📷 Tirar fotos da camera</button>
+            </div>
+            <div id="panel-gallery" class="photo-panel" role="tabpanel" aria-labelledby="tab-gallery">
+              <input id="fotos" class="photo-input" type="file" accept="image/*" multiple>
+            </div>
+            <div id="panel-camera" class="photo-panel" role="tabpanel" aria-labelledby="tab-camera" hidden>
+              <input id="fotosCamera" class="photo-input" type="file" accept="image/*" capture="environment">
+            </div>
+            <div class="photo-help">Escolha fotos da galeria ou tire uma foto com a camera. Limite de 5 imagens; as fotos sao compactadas antes do envio.</div>
+            <div id="preview" class="preview-grid"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="secondary" id="btn-location">&#128260; Rastrear em tempo real</button>
+          <button type="button" class="secondary" id="btn-location-once">📍 Usar localizacao atual</button>
+          <button type="button" class="secondary" id="btn-sync">Sincronizar registros offline</button>
+        </div>
+        <div class="install-box" hidden>
+          <p><strong>📲 Instalar app no celular</strong></p>
+          <div class="actions" style="margin-top:0;">
+            <button type="button" id="btn-install" class="btn-primary-install" style="display:none">⬇ Instalar automaticamente (Android/Chrome)</button>
+            <button type="button" id="btn-install-help" class="secondary">📖 Ver instrucoes de instalacao</button>
+          </div>
+          <p id="install-status">Toque em &quot;Ver instrucoes&quot; para saber como adicionar na tela inicial.</p>
+        </div>
+        <div id="status" class="status"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Registros</h2>
+      <div class="actions" style="margin-top:0; margin-bottom: 10px;">
+        <button type="button" class="secondary" id="btn-refresh">Atualizar lista</button>
+        <button type="button" class="secondary" id="btn-download-daily-map">Baixar mapa diario (PE)</button>
+        <button type="button" class="secondary" id="btn-admin-login">Entrar como administrador</button>
+        <button type="button" class="secondary" id="btn-admin-logout" hidden>Sair do modo admin</button>
+        <button type="button" class="secondary" id="btn-admin-backup" hidden>Backup privado (GitHub)</button>
+        <button type="button" class="secondary" id="btn-admin-supabase-sheets" hidden>Abrir tabela acidentes no Supabase</button>
+      </div>
+      <div class="export-bar" id="export-bar" hidden>
+        <button type="button" class="secondary" id="btn-download-daily" hidden>Baixar planilha diaria</button>
+        <button type="button" class="secondary" id="btn-download-weekly" hidden>Baixar planilha semanal</button>
+        <button type="button" class="secondary" id="btn-download-monthly" hidden>Baixar planilha mensal</button>
+        <span class="badge">Visualizacao agrupada de 10 em 10</span>
+      </div>
+      <div id="stream-status" class="stream-status connecting">Tempo real: conectando...</div>
+      <div id="offline-info" class="map-caption"></div>
+      <div id="empty" class="empty">Carregando registros...</div>
+      <div style="overflow:auto;">
+        <table id="table" hidden>
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Município</th>
+              <th>Veículo/Usuário</th>
+              <th>Tempo de registro</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="actions" style="margin-top:0;">
+          <button type="button" class="secondary" id="btn-prev-page">Pagina anterior</button>
+          <button type="button" class="secondary" id="btn-next-page">Proxima pagina</button>
+        </div>
+        <div id="page-info" class="page-info">Pagina 1 de 1</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="page-submit-bar">
+    <button type="submit" id="btn-submit" form="accident-form">Salvar registro</button>
+  </div>
+
+  <footer class="app-footer">
+    <div class="brand">Desenvolvido e criado pela Vigilância de Violência e Acidentes da Secretaria de Saúde de Pernambuco</div>
+    <div class="address">Rua Vinte e Quatro de Agosto, 209, Santo Amaro, Recife-PE</div>
+  </footer>
+
+  <script>
+    const form = document.getElementById('accident-form');
+    const statusEl = document.getElementById('status');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnLocation = document.getElementById('btn-location');
+    const btnLocationOnce = document.getElementById('btn-location-once');
+    const btnSync = document.getElementById('btn-sync');
+    const btnRefresh = document.getElementById('btn-refresh');
+    const btnAdminLogin = document.getElementById('btn-admin-login');
+    const btnAdminLogout = document.getElementById('btn-admin-logout');
+    const btnAdminBackup = document.getElementById('btn-admin-backup');
+    const btnAdminSupabaseSheets = document.getElementById('btn-admin-supabase-sheets');
+    const exportBar = document.getElementById('export-bar');
+    const btnDownloadDaily = document.getElementById('btn-download-daily');
+    const btnDownloadDailyMap = document.getElementById('btn-download-daily-map');
+    const btnDownloadWeekly = document.getElementById('btn-download-weekly');
+    const btnDownloadMonthly = document.getElementById('btn-download-monthly');
+    const btnPrevPage = document.getElementById('btn-prev-page');
+    const btnNextPage = document.getElementById('btn-next-page');
+    const pageInfo = document.getElementById('page-info');
+    const table = document.getElementById('table');
+    const rows = document.getElementById('rows');
+    const empty = document.getElementById('empty');
+    const municipioNotificacaoInput = document.getElementById('municipioNotificacao');
+    const veiculoUsuarioInputs = Array.from(document.querySelectorAll('input[name="veiculoUsuario"]'));
+    const sinistroComVitimasInput = document.getElementById('sinistroComVitimas');
+    const quantidadeVitimasField = document.getElementById('quantidadeVitimasField');
+    const quantidadeVitimasInputs = Array.from(document.querySelectorAll('input[name="quantidadeVitimas"]'));
+    const registroNoLocalSinistroInput = document.getElementById('registroNoLocalSinistro');
+    const registroForaLocalDescricaoField = document.getElementById('registroForaLocalDescricaoField');
+    const registroForaLocalDescricaoInput = document.getElementById('registroForaLocalDescricao');
+    const equipamentosSegurancaInput = document.getElementById('equipamentosSeguranca');
+    const photosInput = document.getElementById('fotos');
+    const photosCameraInput = document.getElementById('fotosCamera');
+    const tabGallery = document.getElementById('tab-gallery');
+    const tabCamera = document.getElementById('tab-camera');
+    const panelGallery = document.getElementById('panel-gallery');
+    const panelCamera = document.getElementById('panel-camera');
+    const preview = document.getElementById('preview');
+    const btnInstall = document.getElementById('btn-install');
+    const btnInstallHelp = document.getElementById('btn-install-help');
+    const installStatus = document.getElementById('install-status');
+    const updateBanner = document.getElementById('update-banner');
+    const updateBannerText = document.getElementById('update-banner-text');
+    const btnUpdateReload = document.getElementById('btn-update-reload');
+    const installBanner = document.getElementById('install-banner');
+    const btnBannerInstall = document.getElementById('btn-banner-install');
+    const btnBannerHelp = document.getElementById('btn-banner-help');
+    const btnBannerClose = document.getElementById('btn-banner-close');
+    const streamStatus = document.getElementById('stream-status');
+    const offlineInfo = document.getElementById('offline-info');
+    const peMap = document.getElementById('pe-map');
+    const latInput = document.getElementById('latitude');
+    const lonInput = document.getElementById('longitude');
+    const liveTimerEl = document.getElementById('live-timer');
+
+    let encodedPhotos = [];
+    let pendingInstallPrompt = null;
+    let timerInterval = null;
+    let registrationTimerInterval = null;
+    let registrationStartedAt = Date.now();
+    let leafletMap = null;
+    let leafletMarker = null;
+    let leafletAccuracyCircle = null;
+    let leafletFocusCircle = null;
+    let gpsWatchId = null;
+    let renderedItems = [];
+    let currentPage = 1;
+    let leafletAssetsPromise = null;
+    let renderJobToken = 0;
+    const PAGE_SIZE = 10;
+    const RENDER_BATCH_SIZE = 4;
+    const OFFLINE_QUEUE_KEY = 'offline_reports_v1';
+    const OFFLINE_CACHE_KEY = 'accidents_cache_v1';
+    const ADMIN_KEY_STORAGE = 'observa_admin_key_v1';
+    const INSTALL_HELP_SEEN_KEY = 'install_help_seen_v1';
+    const INSTALL_BANNER_DISMISSED_KEY = 'install_banner_dismissed_v1';
+    const APP_INSTALLED_KEY = 'app_installed_v1';
+    const SW_UPDATE_RELOAD_KEY = 'sw_update_reload_once_v1';
+    const STREET_ZOOM = 16;
+    const STREAM_RETRY_MS = 3000;
+    const META_POLL_MS = 8000;
+    let autoRefreshInterval = null;
+    let accidentsStream = null;
+    let streamReconnectTimer = null;
+    let streamConnected = false;
+    let pendingRealtimeReload = false;
+    let lastRemoteFingerprint = '';
+    let adminAccessKey = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+
+    function showUpdateBanner(message, showAction = true) {
+      updateBannerText.textContent = message;
+      btnUpdateReload.hidden = !showAction;
+      updateBanner.hidden = false;
+    }
+
+    function updateRealtimeIndicator() {
+      if (!streamStatus) return;
+
+      if (!navigator.onLine) {
+        streamStatus.textContent = 'Tempo real: offline (aguardando reconexao)';
+        streamStatus.className = 'stream-status offline';
+        return;
+      }
+
+      if (streamConnected) {
+        streamStatus.textContent = 'Tempo real: conectado';
+        streamStatus.className = 'stream-status connected';
+        return;
+      }
+
+      streamStatus.textContent = 'Tempo real: reconectando';
+      streamStatus.className = 'stream-status connecting';
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.hidden = true;
+    }
+
+    btnUpdateReload.addEventListener('click', () => {
+      showUpdateBanner('Aplicando a nova versao do app...', false);
+      window.location.reload();
+    });
+
+    function getVictimDisplay(item) {
+      if (item.sinistroVitimas) return item.sinistroVitimas;
+      if (item.sinistroComVitimas === 'Sim') return item.quantidadeVitimas || '-';
+      if (item.sinistroComVitimas === 'Não') return 'Sem vítimas';
+      return '-';
+    }
+
+    function getCheckedValues(inputs) {
+      return inputs.filter((input) => input.checked).map((input) => input.value.trim()).filter(Boolean);
+    }
+
+    function updateVictimsSelectorUI() {
+      const hasVictims = sinistroComVitimasInput.value === 'Sim';
+      quantidadeVitimasField.hidden = !hasVictims;
+
+      if (!hasVictims) {
+        quantidadeVitimasInputs.forEach((input) => {
+          input.checked = false;
+        });
+      }
+    }
+
+    function updateRegistroLocalUI() {
+      const isOutsideLocation = registroNoLocalSinistroInput.value === 'Não';
+      registroForaLocalDescricaoField.hidden = !isOutsideLocation;
+      registroForaLocalDescricaoInput.required = isOutsideLocation;
+
+      if (!isOutsideLocation) {
+        registroForaLocalDescricaoInput.value = '';
+      }
+    }
+
+    async function refreshDataSilently() {
+      await loadAccidents();
+    }
+
+    async function refreshIfRemoteChanged() {
+      if (!navigator.onLine) return;
+      try {
+        const response = await fetch('/api/accidents/meta', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) return;
+        const meta = await response.json();
+        const fingerprint = String(meta.fingerprint || '');
+        if (!fingerprint) return;
+
+        if (!lastRemoteFingerprint) {
+          lastRemoteFingerprint = fingerprint;
+          return;
+        }
+
+        if (fingerprint !== lastRemoteFingerprint) {
+          lastRemoteFingerprint = fingerprint;
+          await refreshDataSilently();
+        }
+      } catch (_) {
+        // Falha de meta-check nao deve interromper a experiencia.
+      }
+    }
+
+    function scheduleRealtimeReload() {
+      if (pendingRealtimeReload) return;
+      pendingRealtimeReload = true;
+      setTimeout(async () => {
+        pendingRealtimeReload = false;
+        await refreshDataSilently();
+      }, 250);
+    }
+
+    function connectRealtimeStream() {
+      if (!window.EventSource) return;
+      if (accidentsStream) accidentsStream.close();
+      streamConnected = false;
+      updateRealtimeIndicator();
+
+      accidentsStream = new EventSource('/api/accidents/stream');
+
+      accidentsStream.addEventListener('ready', () => {
+        streamConnected = true;
+        updateRealtimeIndicator();
+      });
+
+      accidentsStream.addEventListener('update', () => {
+        streamConnected = true;
+        updateRealtimeIndicator();
+        scheduleRealtimeReload();
+      });
+
+      accidentsStream.onerror = () => {
+        streamConnected = false;
+        updateRealtimeIndicator();
+        if (accidentsStream) {
+          accidentsStream.close();
+          accidentsStream = null;
+        }
+        if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
+        streamReconnectTimer = setTimeout(connectRealtimeStream, STREAM_RETRY_MS);
+      };
+    }
+
+    function startAutomaticUpdates() {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+      autoRefreshInterval = setInterval(() => {
+        if (document.hidden) return;
+        refreshIfRemoteChanged();
+      }, META_POLL_MS);
+    }
+
+    function adminHeaders() {
+      return adminAccessKey ? { 'X-Admin-Key': adminAccessKey } : {};
+    }
+
+    function setPhotoTab(tab) {
+      const galleryActive = tab === 'gallery';
+      tabGallery.setAttribute('aria-selected', galleryActive ? 'true' : 'false');
+      tabCamera.setAttribute('aria-selected', galleryActive ? 'false' : 'true');
+      panelGallery.hidden = !galleryActive;
+      panelCamera.hidden = galleryActive;
+    }
+
+    function setAdminMode(enabled) {
+      exportBar.hidden = !enabled;
+      btnDownloadDaily.hidden = !enabled;
+      btnDownloadWeekly.hidden = !enabled;
+      btnDownloadMonthly.hidden = !enabled;
+      btnAdminLogout.hidden = !enabled;
+      btnAdminBackup.hidden = !enabled;
+      btnAdminSupabaseSheets.hidden = !enabled;
+      btnAdminLogin.hidden = enabled;
+    }
+
+    async function validateAdminKey(key) {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+
+      if (response.status === 404) {
+        throw new Error('API de autenticacao nao encontrada. Inicie pelo server.py (Flask), nao por servidor estatico.');
+      }
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.success) {
+        throw new Error(body.error || 'Falha na autenticacao');
+      }
+      return true;
+    }
+
+    async function promptAdminLogin() {
+      const typed = window.prompt('Digite sua chave de administrador:');
+      if (!typed) return;
+
+      try {
+        const cleanKey = typed.trim();
+        await validateAdminKey(cleanKey);
+        adminAccessKey = cleanKey;
+        localStorage.setItem(ADMIN_KEY_STORAGE, adminAccessKey);
+        setAdminMode(true);
+        setStatus('Modo administrador ativado.', 'ok');
+      } catch (err) {
+        setStatus('Nao foi possivel ativar modo admin: ' + err.message, 'error');
+      }
+    }
+
+    function logoutAdmin() {
+      adminAccessKey = '';
+      localStorage.removeItem(ADMIN_KEY_STORAGE);
+      setAdminMode(false);
+      setStatus('Modo administrador desativado.', '');
+    }
+
+    async function triggerPrivateBackup() {
+      try {
+        const response = await fetch('/api/admin/backup-now', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...adminHeaders()
+          }
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success) {
+          throw new Error(body.error || 'Falha no backup');
+        }
+        setStatus('Backup privado enviado com sucesso.', 'ok');
+      } catch (err) {
+        setStatus('Falha no backup privado: ' + err.message, 'error');
+      }
+    }
+
+    async function openSupabaseSpreadsheets() {
+      try {
+        const response = await fetch('/api/admin/spreadsheets-link', {
+          headers: { ...adminHeaders() }
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success || !body.url) {
+          throw new Error(body.error || 'Link das planilhas nao disponivel');
+        }
+
+        window.open(body.url, '_blank', 'noopener,noreferrer');
+        setStatus('Abrindo o painel correto do projeto no Supabase, diretamente na tabela acidentes.', 'ok');
+      } catch (err) {
+        setStatus('Falha ao abrir planilhas no Supabase: ' + err.message, 'error');
+      }
+    }
+
+    const PE_BOUNDS = {
+      latMin: -9.50,
+      latMax: -7.15,
+      lonMin: -41.50,
+      lonMax: -34.80
+    };
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function compressImage(dataUrl, quality = 0.72, maxSide = 1280) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Falha ao processar imagem'));
+        img.src = dataUrl;
+      });
+    }
+
+    function renderPreview() {
+      preview.innerHTML = '';
+      encodedPhotos.forEach((src, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'preview-item';
+        const img = document.createElement('img');
+        img.alt = 'Foto ' + (idx + 1);
+        img.src = src;
+        wrapper.appendChild(img);
+        preview.appendChild(wrapper);
+      });
+    }
+
+    function readJsonStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function writeJsonStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function getOfflineQueue() {
+      return readJsonStorage(OFFLINE_QUEUE_KEY, []);
+    }
+
+    function setOfflineQueue(queue) {
+      writeJsonStorage(OFFLINE_QUEUE_KEY, queue);
+      updateOfflineInfo();
+    }
+
+    function cacheAccidents(items) {
+      writeJsonStorage(OFFLINE_CACHE_KEY, items);
+    }
+
+    function getCachedAccidents() {
+      return readJsonStorage(OFFLINE_CACHE_KEY, []);
+    }
+
+    function updateOfflineInfo() {
+      const queue = getOfflineQueue();
+      const mode = navigator.onLine ? 'online' : 'offline';
+      const count = queue.length;
+      offlineInfo.innerHTML = `Modo atual: <strong>${mode}</strong>. Pendentes para sincronizar: <strong>${count}</strong>.`;
+      btnSync.disabled = count === 0;
+    }
+
+    async function syncOfflineReports() {
+      if (!navigator.onLine) {
+        setStatus('Sem internet. Sincronizacao indisponivel no momento.', 'warn');
+        return;
+      }
+
+      const queue = getOfflineQueue();
+      if (queue.length === 0) {
+        setStatus('Nao ha registros offline pendentes.', 'ok');
+        return;
+      }
+
+      let remaining = [...queue];
+      let sent = 0;
+
+      for (const item of queue) {
+        try {
+          const response = await fetch('/api/accidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+          if (!response.ok) throw new Error('Falha no envio');
+          sent += 1;
+          remaining = remaining.filter((r) => r.localId !== item.localId);
+          setOfflineQueue(remaining);
+        } catch (_) {
+          break;
+        }
+      }
+
+      if (sent > 0) {
+        setStatus(`${sent} registro(s) offline sincronizado(s).`, 'ok');
+        await loadAccidents();
+      } else {
+        setStatus('Nao foi possivel sincronizar agora.', 'warn');
+      }
+    }
+
+    function initLeafletMap() {
+      if (typeof L === 'undefined' || leafletMap) return;
+
+      const bounds = L.latLngBounds(
+        [PE_BOUNDS.latMin, PE_BOUNDS.lonMin],
+        [PE_BOUNDS.latMax, PE_BOUNDS.lonMax]
+      );
+
+      leafletMap = L.map('pe-map', {
+        zoomControl: true,
+        minZoom: 7,
+        maxZoom: 17,
+        maxBounds: bounds.pad(0.2)
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(leafletMap);
+
+      leafletMap.fitBounds(bounds);
+      peMap.classList.remove('map-loading');
+
+      leafletMap.on('click', (event) => {
+        setPointOnMap(event.latlng.lat, event.latlng.lng, true);
+        setStatus('Rua marcada no mapa com foco ampliado.', 'ok');
+      });
+    }
+
+    function loadLeafletAssets() {
+      if (window.L) return Promise.resolve();
+      if (leafletAssetsPromise) return leafletAssetsPromise;
+
+      leafletAssetsPromise = new Promise((resolve, reject) => {
+        const existingCss = document.querySelector('link[data-leaflet="1"]');
+        const existingJs = document.querySelector('script[data-leaflet="1"]');
+
+        const cssReady = new Promise((cssResolve, cssReject) => {
+          if (existingCss) {
+            cssResolve();
+            return;
+          }
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+          link.crossOrigin = '';
+          link.dataset.leaflet = '1';
+          link.onload = () => cssResolve();
+          link.onerror = () => cssReject(new Error('Falha ao carregar CSS do mapa'));
+          document.head.appendChild(link);
+        });
+
+        const jsReady = new Promise((jsResolve, jsReject) => {
+          if (existingJs && window.L) {
+            jsResolve();
+            return;
+          }
+          if (existingJs && !window.L) {
+            existingJs.addEventListener('load', () => jsResolve(), { once: true });
+            existingJs.addEventListener('error', () => jsReject(new Error('Falha ao carregar JS do mapa')), { once: true });
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+          script.crossOrigin = '';
+          script.dataset.leaflet = '1';
+          script.onload = () => jsResolve();
+          script.onerror = () => jsReject(new Error('Falha ao carregar biblioteca do mapa'));
+          document.body.appendChild(script);
+        });
+
+        Promise.all([cssReady, jsReady]).then(() => resolve()).catch(reject);
+      });
+
+      return leafletAssetsPromise;
+    }
+
+    async function ensureLeafletMapReady() {
+      if (leafletMap) return true;
+      try {
+        await loadLeafletAssets();
+        initLeafletMap();
+        return Boolean(leafletMap);
+      } catch (err) {
+        setStatus('Mapa indisponivel no momento. Verifique sua conexao.', 'warn');
+        return false;
+      }
+    }
+
+    function setPointOnMap(lat, lon, recenter) {
+      const latNum = Number(lat);
+      const lonNum = Number(lon);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return;
+
+      latInput.value = latNum.toFixed(6);
+      lonInput.value = lonNum.toFixed(6);
+
+      if (!leafletMap) return;
+
+      if (!leafletMarker) {
+        leafletMarker = L.marker([latNum, lonNum]).addTo(leafletMap);
+      } else {
+        leafletMarker.setLatLng([latNum, lonNum]);
+      }
+
+      leafletMarker.bindPopup(
+        `Ponto do sinistro<br>Lat: ${latNum.toFixed(6)}<br>Lon: ${lonNum.toFixed(6)}`
+      );
+
+      if (!leafletFocusCircle) {
+        leafletFocusCircle = L.circle([latNum, lonNum], {
+          radius: 25,
+          color: '#ef4444',
+          fillColor: '#f87171',
+          fillOpacity: 0.28,
+          weight: 2
+        }).addTo(leafletMap);
+      } else {
+        leafletFocusCircle.setLatLng([latNum, lonNum]);
+      }
+
+      if (recenter) {
+        leafletMap.flyTo([latNum, lonNum], Math.max(leafletMap.getZoom(), STREET_ZOOM), {
+          animate: true,
+          duration: 0.5
+        });
+        leafletMarker.openPopup();
+      }
+    }
+
+    function formatStopwatch() {
+      const elapsed = Date.now() - registrationStartedAt;
+      liveTimerEl.textContent = formatElapsed(elapsed);
+    }
+
+    function resetStopwatch() {
+      registrationStartedAt = Date.now();
+      formatStopwatch();
+    }
+
+    function startStopwatch() {
+      formatStopwatch();
+      if (registrationTimerInterval) clearInterval(registrationTimerInterval);
+      registrationTimerInterval = setInterval(formatStopwatch, 1000);
+    }
+
+    function getCurrentStopwatchSeconds() {
+      return Math.max(0, Math.floor((Date.now() - registrationStartedAt) / 1000));
+    }
+
+    async function getLocationOnce() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
+        return;
+      }
+      ensureLeafletMapReady();
+      setStatus('Capturando localizacao atual...', '');
+      btnLocationOnce.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setPointOnMap(lat, lon, true);
+          setStatus('Localizacao preenchida: ' + lat.toFixed(5) + ', ' + lon.toFixed(5), 'ok');
+          btnLocationOnce.disabled = false;
+        },
+        (err) => {
+          setStatus('Nao foi possivel obter localizacao: ' + err.message, 'error');
+          btnLocationOnce.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    }
+
+    function startLiveGpsTracking() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocalizacao nao suportada neste navegador.', 'error');
+        return;
+      }
+
+      ensureLeafletMapReady();
+
+      if (gpsWatchId !== null) {
+        // Desativar rastreamento continuo ao clicar de novo
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+        btnLocation.textContent = '\u{1F501} Rastrear em tempo real';
+        setStatus('Rastreamento em tempo real desativado.', '');
+        return;
+      }
+
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setPointOnMap(lat, lon, true);
+
+          if (leafletMap) {
+            const radius = Math.max(8, Number(pos.coords.accuracy || 15));
+            if (!leafletAccuracyCircle) {
+              leafletAccuracyCircle = L.circle([lat, lon], {
+                radius,
+                color: '#1d4ed8',
+                fillColor: '#60a5fa',
+                fillOpacity: 0.18,
+                weight: 1
+              }).addTo(leafletMap);
+            } else {
+              leafletAccuracyCircle.setLatLng([lat, lon]);
+              leafletAccuracyCircle.setRadius(radius);
+            }
+          }
+        },
+        (err) => {
+          setStatus('Nao foi possivel ativar GPS em tempo real: ' + err.message, 'error');
+          if (gpsWatchId !== null) {
+            navigator.geolocation.clearWatch(gpsWatchId);
+            gpsWatchId = null;
+          }
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 4000 }
+      );
+
+      btnLocation.textContent = '\u23F9 Parar rastreamento';
+      setStatus('GPS em tempo real ativado. Sua posição será atualizada no mapa automaticamente.', 'ok');
+    }
+
+    function formatElapsed(ms) {
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(totalSec / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      const seconds = totalSec % 60;
+      return String(hours).padStart(2, '0') + 'h '
+        + String(minutes).padStart(2, '0') + 'm '
+        + String(seconds).padStart(2, '0') + 's';
+    }
+
+    function getRegistrationDurationDisplay(item) {
+      const raw = Number(item && item.tempoRegistroSegundos);
+      if (!Number.isFinite(raw) || raw < 0) return '-';
+      return formatElapsed(raw * 1000);
+    }
+
+    function buildThumbs(item) {
+      const photos = Array.isArray(item.fotos) ? item.fotos : [];
+      if (photos.length === 0) return '-';
+
+      const shown = photos.slice(0, 3)
+        .map((src, idx) => `<img class="thumb" src="${src}" alt="Foto ${idx + 1}" loading="lazy" decoding="async">`)
+        .join('');
+      const extra = photos.length > 3 ? `<span class="thumb-count">+${photos.length - 3}</span>` : '';
+      return `<div class="thumbs">${shown}${extra}</div>`;
+    }
+
+    function buildTableRow(item) {
+      const tr = document.createElement('tr');
+      const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
+      tr.innerHTML = `
+        <td>${item.dataHora || '-'} ${offChip}</td>
+        <td>${item.municipioNotificacao || '-'}</td>
+        <td>${item.veiculoUsuario || '-'}</td>
+        <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
+      `;
+      rows.appendChild(tr);
+    }
+
+    function renderCurrentPage() {
+      rows.innerHTML = '';
+      renderJobToken += 1;
+      const currentRenderToken = renderJobToken;
+      const total = renderedItems.length;
+      if (total === 0) {
+        table.hidden = true;
+        pageInfo.textContent = 'Pagina 1 de 1';
+        btnPrevPage.disabled = true;
+        btnNextPage.disabled = true;
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      currentPage = Math.min(Math.max(1, currentPage), totalPages);
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = renderedItems.slice(startIndex, startIndex + PAGE_SIZE);
+
+      table.hidden = false;
+      pageInfo.textContent = `Pagina ${currentPage} de ${totalPages} (${total} registros)`;
+      btnPrevPage.disabled = currentPage <= 1;
+      btnNextPage.disabled = currentPage >= totalPages;
+
+      let cursor = 0;
+      const paintNextBatch = () => {
+        if (currentRenderToken !== renderJobToken) return;
+
+        const fragment = document.createDocumentFragment();
+        const limit = Math.min(cursor + RENDER_BATCH_SIZE, pageItems.length);
+        for (let i = cursor; i < limit; i += 1) {
+          const item = pageItems[i];
+          const tr = document.createElement('tr');
+          const offChip = item._offline ? '<span class="offline-chip">offline</span>' : '';
+          tr.innerHTML = `
+            <td>${item.dataHora || '-'} ${offChip}</td>
+            <td>${item.municipioNotificacao || '-'}</td>
+            <td>${item.veiculoUsuario || '-'}</td>
+            <td><span class="timer-chip">${getRegistrationDurationDisplay(item)}</span></td>
+          `;
+          fragment.appendChild(tr);
+        }
+        rows.appendChild(fragment);
+        cursor = limit;
+
+        if (cursor < pageItems.length) {
+          window.requestAnimationFrame(paintNextBatch);
+        }
+      };
+
+      window.requestAnimationFrame(paintNextBatch);
+    }
+
+    function setRenderedItems(items) {
+      renderedItems = Array.isArray(items) ? items : [];
+      currentPage = 1;
+      renderCurrentPage();
+    }
+
+    async function downloadSpreadsheet(period) {
+      const periodLabel = {
+        daily: 'diaria',
+        weekly: 'semanal',
+        monthly: 'mensal'
+      }[period] || period;
+
+      setStatus(`Preparando planilha ${periodLabel}...`, '');
+
+      try {
+        const response = await fetch('/api/exports/download/' + period, {
+          headers: { ...adminHeaders() }
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || 'Nao foi possivel gerar a planilha');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const fileNameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const fileName = fileNameMatch ? fileNameMatch[1] : `acidentes_${period}.csv`;
+
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+
+        setStatus(`Planilha ${periodLabel} baixada com sucesso.`, 'ok');
+      } catch (err) {
+        setStatus('Falha ao baixar planilha: ' + err.message, 'error');
+      }
+    }
+
+    async function downloadDailyMap() {
+      setStatus('Preparando mapa diario de Pernambuco...', '');
+
+      try {
+        const response = await fetch('/api/exports/download/daily-map', {
+          headers: { ...adminHeaders() }
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || 'Nao foi possivel gerar o mapa diario');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const fileNameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const fileName = fileNameMatch ? fileNameMatch[1] : 'mapa_pe_diario_latest.html';
+
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+
+        setStatus('Mapa diario baixado com sucesso.', 'ok');
+      } catch (err) {
+        setStatus('Falha ao baixar mapa diario: ' + err.message, 'error');
+      }
+    }
+
+    function setStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + (type || '');
+    }
+
+    async function loadAccidents() {
+      empty.textContent = 'Carregando registros...';
+      table.hidden = true;
+      try {
+        const response = await fetch('/api/accidents', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) throw new Error('Falha ao carregar registros');
+        const items = await response.json();
+        if (!Array.isArray(items)) throw new Error('Resposta invalida da API');
+
+        // Mantem o ultimo snapshot local para evitar sumico visual em respostas vazias inesperadas.
+        if (items.length > 0) {
+          cacheAccidents(items);
+        }
+
+        if (items.length === 0) {
+          const cached = getCachedAccidents();
+          const pending = getOfflineQueue();
+          const offlineItems = pending.map((item) => ({
+            ...item,
+            dataHora: item.dataHora || 'Pendente offline',
+            id: item.localId,
+            _offline: true
+          }));
+          const snapshot = [...offlineItems, ...cached];
+
+          if (snapshot.length > 0) {
+            empty.textContent = 'Mantendo ultimo snapshot local dos registros.';
+            setRenderedItems(snapshot.slice().reverse());
+          } else {
+            empty.textContent = 'Nenhum acidente registrado ainda.';
+            table.hidden = true;
+            setRenderedItems([]);
+          }
+          return;
+        }
+
+        empty.textContent = '';
+        setRenderedItems(items.slice().reverse());
+
+        const latest = items.length > 0 ? items[items.length - 1] : {};
+        const latestId = String((latest && latest.id) || '').trim();
+        const latestDataHora = String((latest && latest.dataHora) || '').trim();
+        lastRemoteFingerprint = `${items.length}:${latestId}:${latestDataHora}`;
+
+        if (timerInterval) clearInterval(timerInterval);
+      } catch (err) {
+        const cached = getCachedAccidents();
+        const pending = getOfflineQueue();
+        const offlineItems = pending.map((item) => ({
+          ...item,
+          dataHora: item.dataHora || 'Pendente offline',
+          id: item.localId,
+          _offline: true
+        }));
+        const fallback = [...offlineItems, ...cached];
+
+        if (!Array.isArray(fallback) || fallback.length === 0) {
+          empty.textContent = 'Sem internet e sem cache local.';
+          table.hidden = true;
+          setRenderedItems([]);
+          return;
+        }
+
+        empty.textContent = 'Mostrando cache local (offline).';
+        setRenderedItems(fallback.slice().reverse());
+
+        const latest = fallback.length > 0 ? fallback[fallback.length - 1] : {};
+        const latestId = String((latest && latest.id) || '').trim();
+        const latestDataHora = String((latest && latest.dataHora) || '').trim();
+        lastRemoteFingerprint = `${fallback.length}:${latestId}:${latestDataHora}`;
+
+        if (timerInterval) clearInterval(timerInterval);
+      }
+    }
+
+    btnLocationOnce.addEventListener('click', getLocationOnce);
+    btnLocation.addEventListener('click', () => {
+      startLiveGpsTracking();
+    });
+
+    btnRefresh.addEventListener('click', loadAccidents);
+    btnAdminLogin.addEventListener('click', promptAdminLogin);
+    btnAdminLogout.addEventListener('click', logoutAdmin);
+    btnAdminBackup.addEventListener('click', triggerPrivateBackup);
+    btnAdminSupabaseSheets.addEventListener('click', openSupabaseSpreadsheets);
+    btnSync.addEventListener('click', syncOfflineReports);
+    btnDownloadDaily.addEventListener('click', () => downloadSpreadsheet('daily'));
+    btnDownloadDailyMap.addEventListener('click', downloadDailyMap);
+    btnDownloadWeekly.addEventListener('click', () => downloadSpreadsheet('weekly'));
+    btnDownloadMonthly.addEventListener('click', () => downloadSpreadsheet('monthly'));
+    btnPrevPage.addEventListener('click', () => {
+      currentPage -= 1;
+      renderCurrentPage();
+    });
+    btnNextPage.addEventListener('click', () => {
+      currentPage += 1;
+      renderCurrentPage();
+    });
+
+    [latInput, lonInput].forEach((input) => {
+      input.addEventListener('change', () => {
+        const lat = Number(latInput.value);
+        const lon = Number(lonInput.value);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          ensureLeafletMapReady();
+          setPointOnMap(lat, lon, false);
+        }
+      });
+    });
+
+    function renderQuickLocalData() {
+      const cached = getCachedAccidents();
+      const pending = getOfflineQueue();
+      const offlineItems = pending.map((item) => ({
+        ...item,
+        dataHora: item.dataHora || 'Pendente offline',
+        id: item.localId,
+        _offline: true
+      }));
+      const snapshot = [...offlineItems, ...cached];
+
+      if (!Array.isArray(snapshot) || snapshot.length === 0) return;
+
+      empty.textContent = navigator.onLine
+        ? 'Mostrando dados locais enquanto atualiza...'
+        : 'Mostrando cache local (offline).';
+      setRenderedItems(snapshot.slice().reverse());
+    }
+
+    function isAppRunningStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function markAppInstalled() {
+      localStorage.setItem(APP_INSTALLED_KEY, '1');
+      localStorage.setItem(INSTALL_HELP_SEEN_KEY, '1');
+      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, '1');
+    }
+
+    function isAppInstalled() {
+      return localStorage.getItem(APP_INSTALLED_KEY) === '1';
+    }
+
+    function hasSeenInstallInstructions() {
+      return localStorage.getItem(INSTALL_HELP_SEEN_KEY) === '1';
+    }
+
+    function markInstallInstructionsSeen() {
+      localStorage.setItem(INSTALL_HELP_SEEN_KEY, '1');
+    }
+
+    function dismissInstallBanner() {
+      localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, '1');
+      installBanner.style.display = 'none';
+    }
+
+    function isInstallBannerDismissed() {
+      return localStorage.getItem(INSTALL_BANNER_DISMISSED_KEY) === '1';
+    }
+
+    function refreshInstallUIState() {
+      const installed = isAppInstalled() || isAppRunningStandalone();
+
+      if (installed) {
+        markAppInstalled();
+        btnInstall.style.display = 'none';
+        btnBannerInstall.style.display = 'none';
+        installBanner.style.display = 'none';
+        installStatus.textContent = 'App instalado com sucesso!';
+        return;
+      }
+
+      const shouldHideBanner = hasSeenInstallInstructions() || isInstallBannerDismissed();
+      installBanner.style.display = shouldHideBanner ? 'none' : '';
+    }
+
+    function showInstallHelp() {
+      markInstallInstructionsSeen();
+      refreshInstallUIState();
+      alert(
+        '📲 Como instalar o ObservaATT PE:\n\n' +
+        '🤖 Android (Chrome):\n' +
+        '  1. Toque nos 3 pontos no canto superior direito\n' +
+        '  2. Toque em "Instalar app" ou "Adicionar a tela inicial"\n\n' +
+        '🍎 iPhone / iPad (Safari):\n' +
+        '  1. Toque no botao de compartilhamento (quadrado com seta)\n' +
+        '  2. Role para baixo e toque em "Adicionar a Tela de Inicio"\n' +
+        '  3. Confirme tocando em "Adicionar"\n\n' +
+        '💡 Dica: No iPhone use o Safari. No Android use o Chrome.'
+      );
+    }
+
+    async function triggerInstall() {
+      if (!pendingInstallPrompt) {
+        showInstallHelp();
+        return;
+      }
+      pendingInstallPrompt.prompt();
+      const result = await pendingInstallPrompt.userChoice;
+      pendingInstallPrompt = null;
+      if (result && result.outcome === 'accepted') {
+        installStatus.textContent = 'App instalado com sucesso!';
+        btnInstall.disabled = true;
+        markAppInstalled();
+        refreshInstallUIState();
+      } else {
+        installStatus.textContent = 'Instalacao cancelada.';
+      }
+    }
+
+    btnInstallHelp.addEventListener('click', showInstallHelp);
+    btnInstall.addEventListener('click', triggerInstall);
+    btnBannerInstall.addEventListener('click', triggerInstall);
+    btnBannerHelp.addEventListener('click', showInstallHelp);
+    btnBannerClose.addEventListener('click', () => {
+      markInstallInstructionsSeen();
+      dismissInstallBanner();
+    });
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      pendingInstallPrompt = event;
+      btnInstall.style.display = '';
+      btnBannerInstall.style.display = '';
+      installStatus.textContent = 'Instalacao automatica disponivel! Toque em "Instalar automaticamente".';
+      refreshInstallUIState();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      markAppInstalled();
+      installStatus.textContent = 'App instalado com sucesso!';
+      btnInstall.style.display = 'none';
+      btnBannerInstall.style.display = 'none';
+      refreshInstallUIState();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => {
+            const activateUpdate = (worker) => {
+              if (!worker) return;
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            };
+
+            if (reg.waiting) activateUpdate(reg.waiting);
+            if (reg.waiting) {
+              showUpdateBanner('Nova versao disponivel. Atualizando o app instalado...', false);
+            }
+
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (!newWorker) return;
+              showUpdateBanner('Baixando atualizacao do app para os aparelhos instalados...', false);
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner('Nova versao pronta. Aplicando atualizacao...', false);
+                  activateUpdate(newWorker);
+                }
+              });
+            });
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (sessionStorage.getItem(SW_UPDATE_RELOAD_KEY) === '1') return;
+              sessionStorage.setItem(SW_UPDATE_RELOAD_KEY, '1');
+              showUpdateBanner('Atualizacao aplicada. Reabrindo o app...', false);
+              window.location.reload();
+            });
+
+            return reg.update();
+          })
+          .catch(() => {
+            hideUpdateBanner();
+          });
+      });
+    }
+
+    window.addEventListener('online', () => {
+      updateOfflineInfo();
+      updateRealtimeIndicator();
+      syncOfflineReports();
+    });
+
+    window.addEventListener('offline', () => {
+      updateOfflineInfo();
+      updateRealtimeIndicator();
+      setStatus('Voce esta offline. Registros serao salvos localmente.', 'warn');
+    });
+
+    async function appendSelectedPhotos(files) {
+      if (files.length === 0) return;
+
+      if (encodedPhotos.length + files.length > 5) {
+        setStatus('Selecione no maximo 5 fotos.', 'error');
+        return;
+      }
+
+      try {
+        setStatus('Processando fotos...', '');
+        const prepared = [...encodedPhotos];
+        for (const file of files) {
+          const dataUrl = await fileToDataUrl(file);
+          const compressed = await compressImage(dataUrl);
+          prepared.push(compressed);
+        }
+        encodedPhotos = prepared;
+        renderPreview();
+        setStatus(`${encodedPhotos.length} foto(s) pronta(s) para envio.`, 'ok');
+      } catch (err) {
+        setStatus('Erro ao processar fotos: ' + err.message, 'error');
+      }
+    }
+
+    photosInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      await appendSelectedPhotos(files);
+      photosInput.value = '';
+    });
+
+    photosCameraInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      await appendSelectedPhotos(files);
+      photosCameraInput.value = '';
+    });
+
+    tabGallery.addEventListener('click', () => setPhotoTab('gallery'));
+    tabCamera.addEventListener('click', () => setPhotoTab('camera'));
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      btnSubmit.disabled = true;
+      setStatus('Enviando sinistro...', '');
+
+      const selectedVeiculos = getCheckedValues(veiculoUsuarioInputs);
+      const selectedVitimas = getCheckedValues(quantidadeVitimasInputs);
+      const registroNoLocal = registroNoLocalSinistroInput.value.trim();
+      const registroForaLocalDescricao = registroForaLocalDescricaoInput.value.trim();
+
+      const payload = {
+        localId: String(Date.now()),
+        dataHora: new Date().toLocaleString('pt-BR'),
+        municipioNotificacao: municipioNotificacaoInput.value.trim(),
+        nomeNotificante: document.getElementById('nomeNotificante').value.trim(),
+        endereco: document.getElementById('endereco').value.trim(),
+        veiculoUsuario: selectedVeiculos.join(' | '),
+        sinistroComVitimas: sinistroComVitimasInput.value.trim(),
+        quantidadeVitimas: selectedVitimas.join(' | '),
+        sinistroVitimas: sinistroComVitimasInput.value.trim() === 'Sim'
+          ? selectedVitimas.join(' | ')
+          : 'Sem vítimas',
+        equipamentosSeguranca: equipamentosSegurancaInput.value.trim(),
+        latitude: latInput.value.trim(),
+        longitude: lonInput.value.trim(),
+        registroNoLocalSinistro: registroNoLocal,
+        registroForaLocalDescricao,
+        tempoRegistroSegundos: getCurrentStopwatchSeconds(),
+        fotos: encodedPhotos
+      };
+
+      try {
+        if (selectedVeiculos.length === 0) {
+          throw new Error('Selecione ao menos uma opção em Veículo/Usuário.');
+        }
+
+        if (!registroNoLocal) {
+          throw new Error('Informe se o registro está sendo feito no local do sinistro.');
+        }
+
+        if (registroNoLocal === 'Não' && !registroForaLocalDescricao) {
+          throw new Error('Informe uma breve descrição quando o registro não for feito no local do sinistro.');
+        }
+
+        if (payload.sinistroComVitimas === 'Sim' && selectedVitimas.length === 0) {
+          throw new Error('Selecione pelo menos uma opção no perfil das vítimas para sinistro com vítimas.');
+        }
+
+        if (!navigator.onLine) {
+          const queue = getOfflineQueue();
+          queue.push(payload);
+          setOfflineQueue(queue);
+          form.reset();
+          encodedPhotos = [];
+          renderPreview();
+          resetStopwatch();
+          setStatus('Sem internet: registro salvo offline e aguardando sincronizacao.', 'warn');
+          await loadAccidents();
+          return;
+        }
+
+        const response = await fetch('/api/accidents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Falha ao salvar');
+
+        form.reset();
+        updateVictimsSelectorUI();
+        encodedPhotos = [];
+        renderPreview();
+        resetStopwatch();
+        if (body.warning) {
+          const detail = body.warningDetail ? ` Detalhe: ${body.warningDetail}` : '';
+          setStatus(body.warning + detail, 'warn');
+        } else {
+          setStatus('Sinistro salvo com sucesso.', 'ok');
+        }
+        loadAccidents();
+      } catch (err) {
+        const queue = getOfflineQueue();
+        queue.push(payload);
+        setOfflineQueue(queue);
+        form.reset();
+        updateVictimsSelectorUI();
+        encodedPhotos = [];
+        renderPreview();
+        resetStopwatch();
+        setStatus('Falha de rede: registro salvo offline para sincronizar depois.', 'warn');
+        await loadAccidents();
+      } finally {
+        btnSubmit.disabled = false;
+      }
+    });
+
+    setAdminMode(false);
+    if (adminAccessKey) {
+      validateAdminKey(adminAccessKey)
+        .then(() => setAdminMode(true))
+        .catch(() => logoutAdmin());
+    }
+
+    updateOfflineInfo();
+    updateRealtimeIndicator();
+    updateVictimsSelectorUI();
+    sinistroComVitimasInput.addEventListener('change', updateVictimsSelectorUI);
+    registroNoLocalSinistroInput.addEventListener('change', updateRegistroLocalUI);
+    setPhotoTab('gallery');
+    refreshInstallUIState();
+    updateRegistroLocalUI();
+    setPointOnMap(-8.050000, -34.900000, true);
+    startStopwatch();
+    renderQuickLocalData();
+    connectRealtimeStream();
+
+    const deferMapInit = () => {
+      ensureLeafletMapReady().then((ok) => {
+        if (ok) {
+          const lat = Number(latInput.value) || -8.05;
+          const lon = Number(lonInput.value) || -34.9;
+          setPointOnMap(lat, lon, false);
+        }
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(deferMapInit, { timeout: 2000 });
+    } else {
+      setTimeout(deferMapInit, 250);
+    }
+
+    setTimeout(loadAccidents, 60);
+    startAutomaticUpdates();
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        refreshDataSilently();
+      }
+    });
+  </script>
+</body>
+</html>
