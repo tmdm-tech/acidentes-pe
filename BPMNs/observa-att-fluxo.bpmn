@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="Definitions_ObservaATT"
+  targetNamespace="http://observaatt.pe/bpmn">
+
+  <bpmn:process id="Processo_Registro_ObservaATT" name="ObservaATT - Registro e Persistência" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_Registro" name="Início do Registro"/>
+
+    <bpmn:userTask id="Task_PreencherFormulario" name="Preencher Formulário de Sinistro"/>
+    <bpmn:serviceTask id="Task_ValidarPayload" name="Validar e Normalizar Payload"/>
+    <bpmn:exclusiveGateway id="Gateway_PayloadValido" name="Payload válido?"/>
+
+    <bpmn:scriptTask id="Task_RegistrarFalha" name="Registrar Requisição Bruta (Resgate)"/>
+    <bpmn:endEvent id="EndEvent_Rejeitado" name="Registro Rejeitado"/>
+
+    <bpmn:serviceTask id="Task_GravarLocal" name="Gravar em accidents.json"/>
+    <bpmn:serviceTask id="Task_GravarJSONL" name="Gravar Trilha JSONL"/>
+
+    <bpmn:exclusiveGateway id="Gateway_SupabaseAtivo" name="Supabase ativo?"/>
+    <bpmn:serviceTask id="Task_UpsertSupabase" name="Upsert na Tabela acidentes"/>
+    <bpmn:exclusiveGateway id="Gateway_SyncOK" name="Sync OK?"/>
+
+    <bpmn:serviceTask id="Task_MarcarFallback" name="Manter Fallback Local"/>
+    <bpmn:serviceTask id="Task_PublicarSSE" name="Publicar Evento SSE"/>
+    <bpmn:serviceTask id="Task_GerarExportacoes" name="Gerar CSV/Mapa Diário"/>
+    <bpmn:endEvent id="EndEvent_Concluido" name="Registro Concluído"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_Registro" targetRef="Task_PreencherFormulario"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_PreencherFormulario" targetRef="Task_ValidarPayload"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ValidarPayload" targetRef="Gateway_PayloadValido"/>
+
+    <bpmn:sequenceFlow id="Flow_4_No" sourceRef="Gateway_PayloadValido" targetRef="Task_RegistrarFalha" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_5_No" sourceRef="Task_RegistrarFalha" targetRef="EndEvent_Rejeitado"/>
+
+    <bpmn:sequenceFlow id="Flow_6_Yes" sourceRef="Gateway_PayloadValido" targetRef="Task_GravarLocal" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_GravarLocal" targetRef="Task_GravarJSONL"/>
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_GravarJSONL" targetRef="Gateway_SupabaseAtivo"/>
+
+    <bpmn:sequenceFlow id="Flow_9_Yes" sourceRef="Gateway_SupabaseAtivo" targetRef="Task_UpsertSupabase" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_UpsertSupabase" targetRef="Gateway_SyncOK"/>
+
+    <bpmn:sequenceFlow id="Flow_11_No" sourceRef="Gateway_SyncOK" targetRef="Task_MarcarFallback" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_MarcarFallback" targetRef="Task_PublicarSSE"/>
+
+    <bpmn:sequenceFlow id="Flow_13_Yes" sourceRef="Gateway_SyncOK" targetRef="Task_PublicarSSE" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_14_NoSupabase" sourceRef="Gateway_SupabaseAtivo" targetRef="Task_PublicarSSE" name="Não"/>
+
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="Task_PublicarSSE" targetRef="Task_GerarExportacoes"/>
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_GerarExportacoes" targetRef="EndEvent_Concluido"/>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_ObservaATT">
+    <bpmndi:BPMNPlane id="Plane_ObservaATT" bpmnElement="Processo_Registro_ObservaATT"/>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
