@@ -26,6 +26,17 @@ except Exception:  # pragma: no cover - fallback para ambiente sem dependencia
     create_client = None
 
 try:
+    _psycopg2_module = importlib.import_module('psycopg2')
+    psycopg2 = _psycopg2_module
+    _psycopg2_extras_module = importlib.import_module('psycopg2.extras')
+    RealDictCursor = getattr(_psycopg2_extras_module, 'RealDictCursor')
+    Json = getattr(_psycopg2_extras_module, 'Json')
+except Exception:  # pragma: no cover - fallback para ambiente sem dependencia
+    psycopg2 = None
+    RealDictCursor = None
+    Json = None
+
+try:
     _fernet_module = importlib.import_module('cryptography.fernet')
     Fernet = getattr(_fernet_module, 'Fernet')
     InvalidToken = getattr(_fernet_module, 'InvalidToken')
@@ -164,6 +175,9 @@ SUPABASE_SPREADSHEETS_URL = os.environ.get(
 ).strip()
 DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
+DATABASE_URL = os.environ.get('DATABASE_URL', '').strip() or os.environ.get('POSTGRES_URL', '').strip()
+POSTGRES_TABLE = os.environ.get('POSTGRES_TABLE', 'acidentes').strip() or 'acidentes'
+POSTGRES_BOOTSTRAP_LOCAL = _as_bool_env('POSTGRES_BOOTSTRAP_LOCAL', default=True)
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '').strip()
 SUPABASE_TABLE = os.environ.get('SUPABASE_TABLE', 'acidentes').strip() or 'acidentes'
@@ -198,6 +212,9 @@ elif DATA_ENCRYPTION_ENABLED:
 else:
     DATA_FERNET = None
 
+if DATABASE_URL and psycopg2 is None:
+    print('[WARN] DATABASE_URL configurada, mas dependencia psycopg2 nao esta disponivel.')
+
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and create_client is None:
     print('[WARN] Variaveis do Supabase configuradas, mas dependencia supabase nao esta disponivel.')
 
@@ -215,11 +232,47 @@ if SUPABASE_STORAGE_SYNC_ENABLED and not SUPABASE_STORAGE_BUCKET:
 
 
 def validate_persistence_mode():
-    if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT and not supabase_enabled():
+    if REQUIRE_PERSISTENT_STORAGE and not DATA_DIR_PERSISTENT and not postgres_enabled():
         print(
             '[WARN] Persistencia obrigatoria ativa, mas DATA_DIR nao aponta para /var/data. '
             'Continuando sem persistencia obrigatoria para evitar erro de deploy.'
         )
+
+
+def postgres_configured():
+    return bool(DATABASE_URL)
+
+
+def _quote_identifier(raw_identifier):
+    text = str(raw_identifier or '').strip()
+    if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', text):
+        raise ValueError(f'Identificador SQL invalido: {text}')
+    return f'"{text}"'
+
+
+def _postgres_table_sql():
+    parts = [part.strip() for part in POSTGRES_TABLE.split('.') if part.strip()]
+    if len(parts) == 1:
+        return _quote_identifier(parts[0])
+    if len(parts) == 2:
+        return f'{_quote_identifier(parts[0])}.{_quote_identifier(parts[1])}'
+    raise ValueError(f'POSTGRES_TABLE invalida: {POSTGRES_TABLE}')
+
+
+def postgres_enabled():
+    if not (postgres_configured() and psycopg2 is not None):
+        return False
+    try:
+        _postgres_table_sql()
+        return True
+    except Exception:
+        return False
+
+
+def _postgres_connect():
+    if not postgres_enabled():
+        raise RuntimeError('Conexao PostgreSQL indisponivel; verifique DATABASE_URL, POSTGRES_TABLE e dependencia psycopg2')
+    return psycopg2.connect(DATABASE_URL, connect_timeout=5)
 
 
 def supabase_enabled():
@@ -239,7 +292,7 @@ def supabase_storage_enabled():
 
 
 def storage_mode_label():
-    return 'supabase' if supabase_enabled() else 'local-json'
+    return 'postgres' if postgres_enabled() else 'local-json'
 
 
 def read_supabase_storage_state():
@@ -291,10 +344,10 @@ def get_supabase_storage_diagnostics():
 
 def get_supabase_diagnostics():
     diagnostics = {
-        'configured': supabase_configured(),
-        'enabled': supabase_enabled(),
-        'table': SUPABASE_TABLE,
-        'bootstrapLocal': SUPABASE_BOOTSTRAP_LOCAL,
+        'configured': postgres_configured(),
+        'enabled': postgres_enabled(),
+        'table': POSTGRES_TABLE,
+        'bootstrapLocal': POSTGRES_BOOTSTRAP_LOCAL,
         'healthy': False,
         'connected': False,
         'tableAccessible': False,
@@ -302,25 +355,25 @@ def get_supabase_diagnostics():
         'error': '',
     }
 
-    if not supabase_configured():
-        diagnostics['error'] = 'SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nao configuradas'
+    if not postgres_configured():
+        diagnostics['error'] = 'DATABASE_URL nao configurada'
         return diagnostics
 
-    if not supabase_enabled():
-        diagnostics['error'] = 'Cliente Supabase indisponivel; verifique dependencia e credenciais'
+    if not postgres_enabled():
+        diagnostics['error'] = 'Cliente PostgreSQL indisponivel; verifique psycopg2 e POSTGRES_TABLE'
         return diagnostics
 
     try:
-        response = (
-            SUPABASE_CLIENT
-            .table(SUPABASE_TABLE)
-            .select('*', count='exact')
-            .limit(0)
-            .execute()
-        )
+        table_sql = _postgres_table_sql()
+        with _postgres_connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT 1')
+                cur.fetchone()
+                cur.execute(f'SELECT COUNT(*) FROM {table_sql}')
+                row = cur.fetchone()
         diagnostics['connected'] = True
         diagnostics['tableAccessible'] = True
-        diagnostics['recordCount'] = response.count if response.count is not None else len(response.data or [])
+        diagnostics['recordCount'] = int(row[0] if row else 0)
         diagnostics['healthy'] = True
     except Exception as exc:
         diagnostics['error'] = str(exc)
@@ -645,9 +698,12 @@ def _safe_error_excerpt(exc):
         'apikey',
         'bearer',
         'token',
+        'password',
+        'postgresql://',
+        'database_url',
     ]
     if any(marker in lowered for marker in sensitive_markers):
-        return 'Erro de autenticacao/permissao no Supabase'
+        return 'Erro de autenticacao/permissao no banco remoto'
 
     return raw[:200]
 
@@ -749,71 +805,103 @@ def _accident_from_supabase_record(row):
 
 
 def _supabase_fetch_all_accidents():
-    records = []
-    offset = 0
+    if not postgres_enabled():
+        return []
 
-    while True:
-        query = (
-            SUPABASE_CLIENT
-            .table(SUPABASE_TABLE)
-            .select('*')
-        )
-        try:
-            response = query.order('created_at', desc=False).range(offset, offset + SUPABASE_PAGE_SIZE - 1).execute()
-        except Exception as exc:
-            if 'created_at' not in str(exc):
-                raise
-            response = query.range(offset, offset + SUPABASE_PAGE_SIZE - 1).execute()
-        rows = response.data or []
-        records.extend(_accident_from_supabase_record(row) for row in rows if isinstance(row, dict))
+    table_sql = _postgres_table_sql()
+    query = f'''
+        SELECT
+            id,
+            municipio_notificacao,
+            nome_notificante,
+            endereco,
+            veiculo_usuario,
+            registro_no_local_sinistro,
+            registro_fora_local_descricao,
+            sinistro_com_vitimas,
+            quantidade_vitimas,
+            sinistro_vitimas,
+            equipamentos_seguranca,
+            latitude,
+            longitude,
+            descricao,
+            fotos,
+            tempo_registro_segundos,
+            data_hora,
+            photo_count,
+            created_at
+        FROM {table_sql}
+        ORDER BY created_at ASC NULLS LAST
+    '''
 
-        if len(rows) < SUPABASE_PAGE_SIZE:
-            break
-        offset += SUPABASE_PAGE_SIZE
+    with _postgres_connect() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query)
+            rows = cur.fetchall() or []
 
-    return records
-
-
-def _extract_missing_column_name(exc):
-    message = str(exc or '')
-    patterns = [
-        r"Could not find the '([^']+)' column",
-        r'column\s+"?([a-zA-Z0-9_]+)"?\s+does not exist',
-        r"Could not find the field '([^']+)'",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, message, flags=re.IGNORECASE)
-        if match:
-            return match.group(1)
-    return ''
+    return [_accident_from_supabase_record(row) for row in rows if isinstance(row, dict)]
 
 
 def _supabase_upsert_resilient(payload):
     items = payload if isinstance(payload, list) else [payload]
-    sanitized_items = [dict(item) for item in items]
-    removed_columns = []
+    if not items:
+        return {'removedColumns': []}
 
-    while True:
-        try:
-            SUPABASE_CLIENT.table(SUPABASE_TABLE).upsert(sanitized_items, on_conflict='id').execute()
-            return {'removedColumns': removed_columns}
-        except Exception as exc:
-            missing_column = _extract_missing_column_name(exc)
-            if not missing_column:
-                raise
+    table_sql = _postgres_table_sql()
+    columns = [
+        'id',
+        'municipio_notificacao',
+        'nome_notificante',
+        'endereco',
+        'veiculo_usuario',
+        'registro_no_local_sinistro',
+        'registro_fora_local_descricao',
+        'sinistro_com_vitimas',
+        'quantidade_vitimas',
+        'sinistro_vitimas',
+        'equipamentos_seguranca',
+        'latitude',
+        'longitude',
+        'descricao',
+        'fotos',
+        'tempo_registro_segundos',
+        'data_hora',
+        'photo_count',
+        'created_at',
+    ]
+    update_columns = [column for column in columns if column != 'id']
+    placeholders = ', '.join(['%s'] * len(columns))
+    columns_sql = ', '.join(f'"{column}"' for column in columns)
+    update_sql = ', '.join(f'"{column}" = EXCLUDED."{column}"' for column in update_columns)
+    upsert_sql = (
+        f'INSERT INTO {table_sql} ({columns_sql}) '
+        f'VALUES ({placeholders}) '
+        f'ON CONFLICT (id) DO UPDATE SET {update_sql}'
+    )
 
-            removed_any = False
-            for item in sanitized_items:
-                if missing_column in item:
-                    item.pop(missing_column, None)
-                    removed_any = True
+    rows = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        row = []
+        for column in columns:
+            value = item.get(column)
+            if column == 'fotos':
+                photos = value if isinstance(value, list) else []
+                row.append(Json(photos) if Json is not None else json.dumps(photos, ensure_ascii=False))
+            else:
+                row.append(value)
+        rows.append(tuple(row))
 
-            if not removed_any:
-                raise
+    if not rows:
+        return {'removedColumns': []}
 
-            if missing_column not in removed_columns:
-                removed_columns.append(missing_column)
-            print(f'[WARN] Coluna ausente no Supabase ignorada no upsert: {missing_column}')
+    with _postgres_connect() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(upsert_sql, rows)
+        conn.commit()
+
+    return {'removedColumns': []}
 
 
 def _supabase_insert_accident(accident):
@@ -822,7 +910,7 @@ def _supabase_insert_accident(accident):
 
 
 def sync_local_records_to_supabase(local_records=None, supabase_records=None, force=False):
-    if not supabase_enabled():
+    if not postgres_enabled():
         return {'enabled': False, 'synced': 0, 'pending': 0}
 
     global LAST_LOCAL_SUPABASE_SYNC_AT
@@ -842,7 +930,7 @@ def sync_local_records_to_supabase(local_records=None, supabase_records=None, fo
         if not payload:
             return {'enabled': True, 'synced': 0, 'pending': 0}
         upsert_info = _supabase_upsert_resilient(payload)
-        print(f'[INFO] Sincronizacao completa local->Supabase: {len(payload)} registro(s) enviados.')
+        print(f'[INFO] Sincronizacao completa local->PostgreSQL: {len(payload)} registro(s) enviados.')
         return {'enabled': True, 'synced': len(payload), 'pending': len(payload), **upsert_info}
 
     remote_items = supabase_records if supabase_records is not None else _supabase_fetch_all_accidents()
@@ -854,19 +942,22 @@ def sync_local_records_to_supabase(local_records=None, supabase_records=None, fo
 
     payload = [_supabase_record_from_accident(item) for item in pending]
     upsert_info = _supabase_upsert_resilient(payload)
-    print(f'[INFO] Sincronizacao local->Supabase: {len(payload)} registro(s) enviados.')
+    print(f'[INFO] Sincronizacao local->PostgreSQL: {len(payload)} registro(s) enviados.')
     return {'enabled': True, 'synced': len(payload), 'pending': len(pending), **upsert_info}
 
 
 def bootstrap_supabase_from_local():
-    if not supabase_enabled() or not SUPABASE_BOOTSTRAP_LOCAL:
-        return {'enabled': supabase_enabled(), 'bootstrapped': False, 'records': 0}
+    if not postgres_enabled() or not POSTGRES_BOOTSTRAP_LOCAL:
+        return {'enabled': postgres_enabled(), 'bootstrapped': False, 'records': 0}
 
+    table_sql = _postgres_table_sql()
     try:
-        response = SUPABASE_CLIENT.table(SUPABASE_TABLE).select('id').limit(1).execute()
-        existing = response.data or []
+        with _postgres_connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT id FROM {table_sql} LIMIT 1')
+                existing = cur.fetchone()
     except Exception as exc:
-        print(f'[WARN] Falha ao verificar bootstrap no Supabase; ignorando bootstrap neste startup. Motivo: {exc}')
+        print(f'[WARN] Falha ao verificar bootstrap no PostgreSQL; ignorando bootstrap neste startup. Motivo: {exc}')
         return {'enabled': True, 'bootstrapped': False, 'records': 0, 'error': str(exc)}
 
     if existing:
@@ -881,9 +972,9 @@ def bootstrap_supabase_from_local():
         return {'enabled': True, 'bootstrapped': False, 'records': 0}
 
     try:
-        SUPABASE_CLIENT.table(SUPABASE_TABLE).insert(payload).execute()
+        _supabase_upsert_resilient(payload)
     except Exception as exc:
-        print(f'[WARN] Falha no bootstrap local->Supabase; mantendo app online com fallback local. Motivo: {exc}')
+        print(f'[WARN] Falha no bootstrap local->PostgreSQL; mantendo app online com fallback local. Motivo: {exc}')
         return {'enabled': True, 'bootstrapped': False, 'records': 0, 'error': str(exc)}
 
     return {'enabled': True, 'bootstrapped': True, 'records': len(payload)}
@@ -1468,13 +1559,13 @@ def generate_all_exports(accidents):
 def load_accidents():
     local_records = _local_load_accidents()
 
-    if supabase_enabled():
+    if postgres_enabled():
         try:
             supabase_records = _supabase_fetch_all_accidents()
             try:
                 sync_local_records_to_supabase(local_records=local_records, supabase_records=supabase_records)
             except Exception as sync_exc:
-                print(f'[WARN] Falha ao sincronizar registros locais para Supabase: {sync_exc}')
+                print(f'[WARN] Falha ao sincronizar registros locais para PostgreSQL: {sync_exc}')
             merged_records = _sort_accidents(_merge_accident_records(supabase_records, local_records))
 
             # Mantem cache local alinhado para evitar sumico visual em instabilidades.
@@ -1483,7 +1574,7 @@ def load_accidents():
 
             return merged_records
         except Exception as exc:
-            print(f'[WARN] Falha ao ler Supabase; usando fallback local. Motivo: {exc}')
+            print(f'[WARN] Falha ao ler PostgreSQL; usando fallback local. Motivo: {exc}')
     return _sort_accidents(local_records)
 
 def save_accidents(accidents):
@@ -1517,7 +1608,7 @@ def health():
         supabase_ready = bool(supabase_diag['healthy'])
 
     persistence_ok = (
-        (supabase_enabled() and supabase_ready)
+        (postgres_enabled() and supabase_ready)
         or (not REQUIRE_PERSISTENT_STORAGE)
         or DATA_DIR_PERSISTENT
     )
@@ -1526,10 +1617,15 @@ def health():
         'storage': {
             'mode': storage_mode_label(),
             'supabaseConfigured': supabase_diag['configured'],
-            'supabaseEnabled': supabase_enabled(),
+            'supabaseEnabled': postgres_enabled(),
             'supabaseHealthy': supabase_diag['healthy'],
-            'supabaseTable': SUPABASE_TABLE if supabase_configured() else '',
+            'supabaseTable': POSTGRES_TABLE if postgres_configured() else '',
             'supabaseError': supabase_diag['error'] if supabase_diag['configured'] else '',
+            'postgresConfigured': supabase_diag['configured'],
+            'postgresEnabled': postgres_enabled(),
+            'postgresHealthy': supabase_diag['healthy'],
+            'postgresTable': POSTGRES_TABLE if postgres_configured() else '',
+            'postgresError': supabase_diag['error'] if supabase_diag['configured'] else '',
             'cloudStorageEnabled': cloud_diag['enabled'],
             'cloudStorageBucket': cloud_diag['bucket'] if cloud_diag['configured'] else '',
             'cloudStoragePrefix': cloud_diag['prefix'] if cloud_diag['configured'] else '',
@@ -1928,19 +2024,17 @@ def add_accident():
         save_accidents(local_records)
         save_temporary_incoming_record(accident)
 
-        supabase_warning = ''
-        supabase_warning_excerpt = ''
-        supabase_warning_type = ''
-        supabase_removed_columns = []
-        if supabase_enabled():
+        database_warning = ''
+        database_warning_excerpt = ''
+        database_warning_type = ''
+        if postgres_enabled():
             try:
-                upsert_info = _supabase_insert_accident(accident)
-                supabase_removed_columns = upsert_info.get('removedColumns', [])
+                _supabase_insert_accident(accident)
             except Exception as exc:
-                supabase_warning = str(exc)
-                supabase_warning_excerpt = _safe_error_excerpt(exc)
-                supabase_warning_type = type(exc).__name__
-                print(f'[WARN] Falha ao inserir no Supabase; registro mantido no espelho local. Motivo: {exc}')
+                database_warning = str(exc)
+                database_warning_excerpt = _safe_error_excerpt(exc)
+                database_warning_type = type(exc).__name__
+                print(f'[WARN] Falha ao inserir no PostgreSQL; registro mantido no espelho local. Motivo: {exc}')
 
         accidents = load_accidents()
         ensure_scheduled_daily_exports(accidents)
@@ -1952,14 +2046,10 @@ def add_accident():
             'message': 'Acidente reportado com sucesso!',
             'id': accident['id']
         }
-        if supabase_warning:
-            response['warning'] = 'Registro salvo localmente; sincronizacao com Supabase pendente.'
-            response['warningType'] = supabase_warning_type or 'SupabaseInsertError'
-            response['warningDetail'] = supabase_warning_excerpt
-        elif supabase_removed_columns:
-            response['warning'] = 'Registro enviado ao Supabase com compatibilidade para tabela antiga.'
-            response['warningType'] = 'SupabaseSchemaCompatibility'
-            response['warningDetail'] = 'Colunas ausentes ignoradas: ' + ', '.join(supabase_removed_columns)
+        if database_warning:
+            response['warning'] = 'Registro salvo localmente; sincronizacao com PostgreSQL pendente.'
+            response['warningType'] = database_warning_type or 'PostgresInsertError'
+            response['warningDetail'] = database_warning_excerpt
 
         publish_realtime_event('accident-created', {
             'id': accident['id'],
@@ -1986,13 +2076,13 @@ def _background_startup_tasks():
     try:
         bootstrap_supabase_from_local()
     except Exception as exc:
-        print(f'[WARN] Falha inesperada no bootstrap Supabase durante startup: {exc}')
+        print(f'[WARN] Falha inesperada no bootstrap PostgreSQL durante startup: {exc}')
 
-    if supabase_enabled():
+    if postgres_enabled():
         try:
             sync_local_records_to_supabase(force=True)
         except Exception as exc:
-            print(f'[WARN] Falha na sincronizacao inicial local->Supabase: {exc}')
+            print(f'[WARN] Falha na sincronizacao inicial local->PostgreSQL: {exc}')
 
     try:
         ensure_scheduled_daily_exports(load_accidents())

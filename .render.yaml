@@ -7,6 +7,12 @@ services:
     startCommand: "sh -c 'python -m gunicorn server:app --bind 0.0.0.0:${PORT:-8000}'"
     healthCheckPath: /health
     envVars:
+      - key: DATABASE_URL
+        value: ""
+      - key: POSTGRES_TABLE
+        value: "public.acidentes"
+      - key: POSTGRES_BOOTSTRAP_LOCAL
+        value: "true"
       - key: DATA_DIR
         value: /var/data
       - key: REQUIRE_PERSISTENT_STORAGE
