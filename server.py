@@ -175,7 +175,11 @@ SUPABASE_SPREADSHEETS_URL = os.environ.get(
 ).strip()
 DATA_ENCRYPTION_KEY = os.environ.get('DATA_ENCRYPTION_KEY', '').strip()
 DATA_ENCRYPTION_ENABLED = bool(DATA_ENCRYPTION_KEY)
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip() or os.environ.get('POSTGRES_URL', '').strip()
+DB_HOST = os.environ.get('DB_HOST', '10.16.56.47').strip()
+DB_PORT = os.environ.get('DB_PORT', '5432').strip()
+DB_USER = os.environ.get('DB_USER', '').strip()
+DB_PASSWORD = os.environ.get('DB_PASSWORD', '').strip()
+DB_NAME = os.environ.get('DB_NAME', '').strip()
 POSTGRES_TABLE = os.environ.get('POSTGRES_TABLE', 'acidentes').strip() or 'acidentes'
 POSTGRES_BOOTSTRAP_LOCAL = _as_bool_env('POSTGRES_BOOTSTRAP_LOCAL', default=True)
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
@@ -212,8 +216,8 @@ elif DATA_ENCRYPTION_ENABLED:
 else:
     DATA_FERNET = None
 
-if DATABASE_URL and psycopg2 is None:
-    print('[WARN] DATABASE_URL configurada, mas dependencia psycopg2 nao esta disponivel.')
+if DB_HOST and psycopg2 is None:
+    print('[WARN] DB_HOST configurado, mas dependencia psycopg2 nao esta disponivel.')
 
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and create_client is None:
     print('[WARN] Variaveis do Supabase configuradas, mas dependencia supabase nao esta disponivel.')
@@ -240,7 +244,7 @@ def validate_persistence_mode():
 
 
 def postgres_configured():
-    return bool(DATABASE_URL)
+    return bool(DB_HOST and DB_NAME)
 
 
 def _quote_identifier(raw_identifier):
@@ -271,8 +275,15 @@ def postgres_enabled():
 
 def _postgres_connect():
     if not postgres_enabled():
-        raise RuntimeError('Conexao PostgreSQL indisponivel; verifique DATABASE_URL, POSTGRES_TABLE e dependencia psycopg2')
-    return psycopg2.connect(DATABASE_URL, connect_timeout=5)
+        raise RuntimeError('Conexao PostgreSQL indisponivel; verifique DB_HOST/DB_PORT/DB_NAME, POSTGRES_TABLE e dependencia psycopg2')
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=int(DB_PORT or 5432),
+        user=DB_USER or None,
+        password=DB_PASSWORD or None,
+        dbname=DB_NAME,
+        connect_timeout=5,
+    )
 
 
 def supabase_enabled():
@@ -356,11 +367,11 @@ def get_supabase_diagnostics():
     }
 
     if not postgres_configured():
-        diagnostics['error'] = 'DATABASE_URL nao configurada'
+        diagnostics['error'] = 'DB_HOST e DB_NAME nao configurados'
         return diagnostics
 
     if not postgres_enabled():
-        diagnostics['error'] = 'Cliente PostgreSQL indisponivel; verifique psycopg2 e POSTGRES_TABLE'
+        diagnostics['error'] = 'Cliente PostgreSQL indisponivel; verifique psycopg2, DB_HOST/DB_NAME e POSTGRES_TABLE'
         return diagnostics
 
     try:
@@ -700,7 +711,7 @@ def _safe_error_excerpt(exc):
         'token',
         'password',
         'postgresql://',
-        'database_url',
+        'db_password',
     ]
     if any(marker in lowered for marker in sensitive_markers):
         return 'Erro de autenticacao/permissao no banco remoto'
