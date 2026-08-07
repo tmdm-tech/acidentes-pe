@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "SR-SECLXBDP6047:10.16.56.47"
+    environment:
+      PORT: "8000"
+      DB_HOST: "SR-SECLXBDP6047"
+      DB_PORT: "5432"
+      DB_USER: "sinatt"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_NAME: "sinatt"
+      POSTGRES_TABLE: "${POSTGRES_TABLE:-public.acidentes}"
+      POSTGRES_BOOTSTRAP_LOCAL: "${POSTGRES_BOOTSTRAP_LOCAL:-true}"
+      ADMIN_ACCESS_KEY: "${ADMIN_ACCESS_KEY}"
+      APP_TIMEZONE: "${APP_TIMEZONE:-America/Recife}"
+      DATA_DIR: "/var/data"
+    volumes:
+      - app_data:/var/data
+    restart: unless-stopped
+
+volumes:
+  app_data:

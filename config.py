@@ -10,7 +10,15 @@ ENV = os.environ.get('FLASK_ENV', 'development')
 DEBUG = ENV == 'development'
 
 # Configuração de banco de dados
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///accidents.db')
+DB_HOST = os.environ.get('DB_HOST', '').strip()
+DB_PORT = os.environ.get('DB_PORT', '5432').strip()
+DB_USER = os.environ.get('DB_USER', '').strip()
+DB_PASSWORD = os.environ.get('DB_PASSWORD', '').strip()
+DB_NAME = os.environ.get('DB_NAME', '').strip()
+if DB_HOST and DB_NAME:
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+else:
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///accidents.db')
 
 # Configuração de segurança
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
