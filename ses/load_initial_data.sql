@@ -4,18 +4,14 @@
 
 \set ON_ERROR_STOP on
 
-BEGIN;
-
 -- Estruturas
 \i ses/migrate_postgresql_ses.sql
 
 -- Carga do ranking consolidado versionado no repositório.
--- O dump já contém os 52 registros e usa TRUNCATE intencionalmente para
--- reconstruir esta tabela de referência.
+-- O dump contém os 52 registros e reconstrói esta tabela de referência.
 \i planilha_att.dump.sql
 
 -- Carga do snapshot de resgate dos registros operacionais.
--- A tabela staging permite adaptar o CSV antigo ao schema PostgreSQL atual.
 CREATE TEMP TABLE _acidentes_import (
   id text,
   periodo text,
@@ -80,7 +76,8 @@ SELECT
   data_hora_registro,
   COALESCE(quantidade_fotos, 0),
   to_timestamp(
-    regexp_replace(data_hora_registro, '(\d{2})/(\d{2})/(\d{4}) (.*)', '\3-\2-\1 \4')
+    regexp_replace(data_hora_registro, '(\\d{2})/(\\d{2})/(\\d{4}) (.*)', '\\3-\\2-\\1 \\4'),
+    'YYYY-MM-DD HH24:MI:SS'
   )
 FROM _acidentes_import
 ON CONFLICT (id) DO UPDATE SET
@@ -99,8 +96,6 @@ ON CONFLICT (id) DO UPDATE SET
   tempo_registro_segundos = EXCLUDED.tempo_registro_segundos,
   data_hora = EXCLUDED.data_hora,
   photo_count = EXCLUDED.photo_count;
-
-COMMIT;
 
 -- Conferência final
 SELECT 'public.acidentes' AS tabela, COUNT(*) AS registros FROM public.acidentes
