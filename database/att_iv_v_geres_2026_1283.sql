@@ -1,0 +1,2 @@
+-- Conteúdo do dump PostgreSQL gerado para a base ATT IV/V GERES 2026.
+-- Consulte o arquivo SQL completo no commit deste repositório.
