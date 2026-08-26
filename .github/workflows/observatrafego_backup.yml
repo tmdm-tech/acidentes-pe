@@ -27,24 +27,43 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Coletar API com redundância
+      - name: Coletar API com redundância e diagnosticar payload
         shell: bash
         run: |
           set -euo pipefail
           URL=""
+          rm -f /tmp/observatrafego_response.json
           for CANDIDATE in "$OBSERVATRAFEGO_API_PRIMARY" "$OBSERVATRAFEGO_API_FALLBACK"; do
             echo "Testando API: $CANDIDATE"
             if curl --fail --silent --show-error --location \
               --connect-timeout 10 --max-time 45 \
               --retry 5 --retry-delay 3 --retry-all-errors \
-              -H 'User-Agent: acidentes-pe-github-backup/1.0' \
+              -H 'User-Agent: acidentes-pe-github-backup/1.1' \
+              -H 'Accept: application/json' \
               -o /tmp/observatrafego_response.json "$CANDIDATE"; then
               python - <<'PY'
           import json
-          with open('/tmp/observatrafego_response.json', encoding='utf-8') as f:
-              payload=json.load(f)
-          ok=isinstance(payload,list) or (isinstance(payload,dict) and isinstance(payload.get('records'),list))
-          print(f'JSON válido: {ok}')
+          from pathlib import Path
+          p=Path('/tmp/observatrafego_response.json')
+          payload=json.loads(p.read_text(encoding='utf-8'))
+          print('Tipo de payload:', type(payload).__name__)
+          if isinstance(payload, dict): print('Chaves de topo:', sorted(payload.keys()))
+          if isinstance(payload, list):
+              count=sum(isinstance(x,dict) for x in payload)
+          elif isinstance(payload, dict):
+              count=0
+              for k in ('records','data','accidents','items','results','ocorrencias','acidentes'):
+                  v=payload.get(k)
+                  if isinstance(v,list): count=len([x for x in v if isinstance(x,dict)]); break
+                  if isinstance(v,dict):
+                      for kk in ('records','data','accidents','items','results','ocorrencias','acidentes'):
+                          vv=v.get(kk)
+                          if isinstance(vv,list): count=len([x for x in vv if isinstance(x,dict)]); break
+                      if count: break
+              if count==0 and any(k in payload for k in ('id','municipioNotificacao','dataHora','endereco')): count=1
+          else: count=0
+          print('Registros detectados no payload:', count)
+          ok=isinstance(payload,list) or isinstance(payload,dict)
           raise SystemExit(0 if ok else 1)
           PY
               URL="$CANDIDATE"
@@ -65,7 +84,7 @@ jobs:
             --input dumps/observatrafego/.latest_response.json \
             --output dumps/observatrafego/.observatrafego_latest_candidate.sql
 
-      - name: Bloquear substituição se houver redução de registros
+      - name: Bloquear substituição se houver redução ou coleta vazia
         shell: bash
         run: |
           set -euo pipefail
@@ -77,12 +96,12 @@ jobs:
           echo "Snapshot anterior: $OLD_COUNT registros"
           echo "Snapshot novo: $NEW_COUNT registros"
           if [ "$NEW_COUNT" -lt 1 ]; then
-            echo "ERRO: coleta sem registros. Snapshot anterior será preservado."
+            echo "ERRO: coleta normalizada sem registros. Snapshot anterior preservado."
             exit 1
           fi
           if [ "$OLD_COUNT" -gt 0 ] && [ "$NEW_COUNT" -lt "$OLD_COUNT" ]; then
             echo "ERRO: nova coleta tem menos registros que o snapshot anterior."
-            echo "Nenhum arquivo anterior será substituído para evitar perda de dados."
+            echo "Nenhum arquivo anterior será substituído."
             exit 1
           fi
           mv dumps/observatrafego/.observatrafego_latest_candidate.sql dumps/observatrafego/observatrafego_latest.sql
@@ -103,8 +122,12 @@ jobs:
           fi
           echo "Dump diário anterior: $OLD_DAY"
           echo "Dump diário novo: $NEW_DAY"
-          if [ "$NEW_DAY" -ge "$OLD_DAY" ]; then
+          if [ "$NEW_DAY" -ge "$OLD_DAY" ] && [ "$NEW_DAY" -gt 0 ]; then
             mv "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" "dumps/observatrafego/observatrafego_${DAY}.sql"
+          elif [ "$NEW_DAY" -eq 0 ]; then
+            echo "ERRO: nenhum registro do dia foi normalizado. Versão anterior preservada."
+            rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
+            exit 1
           else
             echo "Coleta diária menor que a anterior; preservando versão anterior."
             rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
