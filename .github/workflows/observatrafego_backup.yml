@@ -8,13 +8,12 @@ on:
     paths:
       - ".github/workflows/observatrafego_backup.yml"
       - "scripts/backup_observatrafego_to_sql.py"
+      - "scripts/observatrafego_full_snapshot.py"
 
 permissions:
   contents: write
 
 env:
-  # O domínio institucional pode falhar para runners externos por DNS/rede.
-  # Mantemos o domínio do app como segunda rota pública de coleta.
   OBSERVATRAFEGO_API_PRIMARY: "https://observatrafego.saude.pe.gov.br/api/accidents"
   OBSERVATRAFEGO_API_FALLBACK: "https://observatrafego-jx4p.onrender.com/api/accidents"
 
@@ -26,33 +25,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Testar endpoint e gerar dump do dia
+
+      - name: Coletar API com redundância
         shell: bash
         run: |
           set -euo pipefail
-          DAY="$(TZ=America/Recife date +%F)"
-          OUTPUT="dumps/observatrafego/observatrafego_${DAY}.sql"
           URL=""
-
           for CANDIDATE in "$OBSERVATRAFEGO_API_PRIMARY" "$OBSERVATRAFEGO_API_FALLBACK"; do
             echo "Testando API: $CANDIDATE"
             if curl --fail --silent --show-error --location \
               --connect-timeout 10 --max-time 45 \
-              --retry 4 --retry-delay 3 --retry-all-errors \
+              --retry 5 --retry-delay 3 --retry-all-errors \
               -H 'User-Agent: acidentes-pe-github-backup/1.0' \
-              -o /tmp/observatrafego_response.json \
-              "$CANDIDATE"; then
-              if python - <<'PY'
+              -o /tmp/observatrafego_response.json "$CANDIDATE"; then
+              python - <<'PY'
           import json
           with open('/tmp/observatrafego_response.json', encoding='utf-8') as f:
-              payload = json.load(f)
-          if isinstance(payload, list):
-              ok = True
-          elif isinstance(payload, dict) and isinstance(payload.get('records'), list):
-              ok = True
-          else:
-              ok = False
-          print(f'Formato JSON aceito: {ok}')
+              payload=json.load(f)
+          ok=isinstance(payload,list) or (isinstance(payload,dict) and isinstance(payload.get('records'),list))
+          print(f'JSON válido: {ok}')
           raise SystemExit(0 if ok else 1)
           PY
               URL="$CANDIDATE"
@@ -60,19 +51,41 @@ jobs:
             fi
             echo "Endpoint indisponível: $CANDIDATE"
           done
-
           if [ -z "$URL" ]; then
-            echo "ERRO: nenhum endpoint do ObservaTrafego respondeu com JSON válido."
+            echo "ERRO: nenhum endpoint respondeu com JSON válido."
             exit 1
           fi
-
           echo "Endpoint selecionado: $URL"
-          python scripts/backup_observatrafego_to_sql.py \
-            --url "$URL" \
-            --day "$DAY" \
-            --output "$OUTPUT"
+          cp /tmp/observatrafego_response.json dumps/observatrafego/.latest_response.json
 
-          cp "$OUTPUT" "dumps/observatrafego/observatrafego_latest.sql"
+      - name: Gerar snapshot completo de segurança
+        run: |
+          python scripts/observatrafego_full_snapshot.py \
+            --input dumps/observatrafego/.latest_response.json \
+            --output dumps/observatrafego/observatrafego_latest.sql
+
+      - name: Gerar dump diário
+        shell: bash
+        run: |
+          set -euo pipefail
+          DAY="$(TZ=America/Recife date +%F)"
+          python scripts/backup_observatrafego_to_sql.py \
+            --url "https://observatrafego.saude.pe.gov.br/api/accidents" \
+            --day "$DAY" \
+            --output "dumps/observatrafego/observatrafego_${DAY}.sql"
+
+      - name: Remover resposta JSON temporária
+        run: rm -f dumps/observatrafego/.latest_response.json
+
+      - name: Validar que o snapshot contém registros
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dumps/observatrafego/observatrafego_latest.sql
+          grep -q 'CREATE TABLE "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql
+          COUNT=$(grep -c '^INSERT INTO "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql || true)
+          echo "INSERTs preservados no snapshot: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then exit 1; fi
 
       - name: Commit somente se houver alteração
         run: |
@@ -80,8 +93,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dumps/observatrafego/*.sql
           if git diff --cached --quiet; then
-            echo "Nenhuma alteração nos registros do dia."
+            echo "Nenhuma alteração nos registros."
             exit 0
           fi
-          git commit -m "chore: atualiza dump ObservaTrafego $(TZ=America/Recife date +%F)"
+          git commit -m "chore: atualiza backup ObservaTrafego $(TZ=America/Recife date +%F-%H%M)"
           git push
