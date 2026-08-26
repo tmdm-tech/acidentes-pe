@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/observatrafego_backup.yml"
+      - "scripts/backup_observatrafego_to_sql.py"
 
 permissions:
   contents: write
