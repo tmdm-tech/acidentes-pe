@@ -3,15 +3,13 @@ services:
     build: .
     ports:
       - "8000:8000"
-    extra_hosts:
-      - "SR-SECLXBDP6047:10.16.56.47"
     environment:
       PORT: "8000"
-      DB_HOST: "SR-SECLXBDP6047"
-      DB_PORT: "5432"
-      DB_USER: "sinatt"
+      DB_HOST: "${DB_HOST}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_USER: "${DB_USER}"
       DB_PASSWORD: "${DB_PASSWORD}"
-      DB_NAME: "sinatt"
+      DB_NAME: "${DB_NAME}"
       POSTGRES_TABLE: "${POSTGRES_TABLE:-public.acidentes}"
       POSTGRES_BOOTSTRAP_LOCAL: "${POSTGRES_BOOTSTRAP_LOCAL:-true}"
       ADMIN_ACCESS_KEY: "${ADMIN_ACCESS_KEY}"
