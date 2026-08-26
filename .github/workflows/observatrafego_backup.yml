@@ -64,20 +64,20 @@ jobs:
             --input dumps/observatrafego/.latest_response.json \
             --output dumps/observatrafego/observatrafego_latest.sql
 
-      - name: Gerar dump diário
+      - name: Gerar dump diário a partir da mesma coleta
         shell: bash
         run: |
           set -euo pipefail
           DAY="$(TZ=America/Recife date +%F)"
           python scripts/backup_observatrafego_to_sql.py \
-            --url "https://observatrafego.saude.pe.gov.br/api/accidents" \
+            --input dumps/observatrafego/.latest_response.json \
             --day "$DAY" \
             --output "dumps/observatrafego/observatrafego_${DAY}.sql"
 
       - name: Remover resposta JSON temporária
         run: rm -f dumps/observatrafego/.latest_response.json
 
-      - name: Validar que o snapshot contém registros
+      - name: Validar integridade do snapshot
         shell: bash
         run: |
           set -euo pipefail
