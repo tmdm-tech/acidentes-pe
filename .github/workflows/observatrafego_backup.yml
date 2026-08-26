@@ -25,19 +25,13 @@ jobs:
       - name: Gerar dump do dia
         run: |
           DAY="$(TZ=America/Recife date +%F)"
-          python scripts/backup_observatrafego_to_sql.py \
-            --url "https://observatrafego.saude.pe.gov.br/api/accidents" \
-            --day "$DAY" \
-            --output "dumps/observatrafego/observatrafego_${DAY}.sql"
+          python scripts/backup_observatrafego_to_sql.py --url "https://observatrafego.saude.pe.gov.br/api/accidents" --day "$DAY" --output "dumps/observatrafego/observatrafego_${DAY}.sql"
           cp "dumps/observatrafego/observatrafego_${DAY}.sql" "dumps/observatrafego/observatrafego_latest.sql"
       - name: Commit somente se houver alteração
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dumps/observatrafego/*.sql
-          if git diff --cached --quiet; then
-            echo "Nenhuma alteração nos registros do dia."
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo "Nenhuma alteração nos registros do dia."; exit 0; fi
           git commit -m "chore: atualiza dump ObservaTrafego $(TZ=America/Recife date +%F)"
           git push
