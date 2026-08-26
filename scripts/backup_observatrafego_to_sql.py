@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+CONTAINER_KEYS = ('records', 'data', 'accidents', 'items', 'results', 'ocorrencias', 'acidentes')
+
 def sql_value(value):
     if value is None or value == "": return "NULL"
     if isinstance(value, bool): return "TRUE" if value else "FALSE"
@@ -13,18 +15,32 @@ def sql_value(value):
 
 def parse_datetime(raw):
     raw = str(raw or "").strip()
+    if not raw: return None
+    candidates=[raw, raw.replace('Z','+00:00')]
+    for value in candidates:
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            pass
     for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
         try: return datetime.strptime(raw[:19], fmt)
         except ValueError: pass
     return None
 
 def fetch_json(url):
-    req = Request(url, headers={"User-Agent": "acidentes-pe-github-backup/1.0"})
-    with urlopen(req, timeout=30) as response: return json.load(response)
+    req = Request(url, headers={"User-Agent": "acidentes-pe-github-backup/1.1", "Accept": "application/json"})
+    with urlopen(req, timeout=45) as response: return json.load(response)
 
 def normalize(payload):
-    if isinstance(payload, dict) and isinstance(payload.get("records"), list): return [r for r in payload["records"] if isinstance(r, dict)]
     if isinstance(payload, list): return [r for r in payload if isinstance(r, dict)]
+    if not isinstance(payload, dict): return []
+    for key in CONTAINER_KEYS:
+        value=payload.get(key)
+        if isinstance(value,list): return [r for r in value if isinstance(r,dict)]
+        if isinstance(value,dict):
+            nested=normalize(value)
+            if nested: return nested
+    if any(k in payload for k in ('id','municipioNotificacao','dataHora','endereco')): return [payload]
     return []
 
 def build_dump(records, day):
@@ -47,7 +63,13 @@ def main():
     if not a.url and not a.input: p.error('informe --url ou --input')
     payload=json.loads(Path(a.input).read_text(encoding='utf-8')) if a.input else fetch_json(a.url)
     records=normalize(payload)
-    selected=[r for r in records if (parse_datetime(r.get('dataHora')) or datetime.min).strftime('%Y-%m-%d')==a.day]
+    print(f'Tipo de resposta: {type(payload).__name__}')
+    if isinstance(payload,dict): print(f'Chaves de topo: {sorted(payload.keys())}')
+    print(f'Registros normalizados: {len(records)}')
+    selected=[]
+    for r in records:
+        dt=parse_datetime(r.get('dataHora'))
+        if dt and dt.strftime('%Y-%m-%d')==a.day: selected.append(r)
     out=Path(a.output); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(build_dump(selected,a.day),encoding='utf-8')
     print(f'Registros totais recebidos: {len(records)}'); print(f'Registros do dia {a.day}: {len(selected)}'); print(f'Dump: {out}')
 if __name__=='__main__': main()
