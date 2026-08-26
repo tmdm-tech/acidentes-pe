@@ -14,8 +14,7 @@ permissions:
   contents: write
 
 env:
-  OBSERVATRAFEGO_API_PRIMARY: "https://observatrafego.saude.pe.gov.br/api/accidents"
-  OBSERVATRAFEGO_API_FALLBACK: "https://observatrafego-jx4p.onrender.com/api/accidents"
+  OBSERVATRAFEGO_API: "https://observatrafego-jx4p.onrender.com/api/accidents"
 
 jobs:
   backup:
@@ -27,21 +26,19 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Coletar API com redundância e diagnosticar payload
+      - name: Coletar API e diagnosticar payload
         shell: bash
         run: |
           set -euo pipefail
-          URL=""
           rm -f /tmp/observatrafego_response.json
-          for CANDIDATE in "$OBSERVATRAFEGO_API_PRIMARY" "$OBSERVATRAFEGO_API_FALLBACK"; do
-            echo "Testando API: $CANDIDATE"
-            if curl --fail --silent --show-error --location \
-              --connect-timeout 10 --max-time 45 \
-              --retry 5 --retry-delay 3 --retry-all-errors \
-              -H 'User-Agent: acidentes-pe-github-backup/1.1' \
-              -H 'Accept: application/json' \
-              -o /tmp/observatrafego_response.json "$CANDIDATE"; then
-              python - <<'PY'
+          echo "Testando API: $OBSERVATRAFEGO_API"
+          curl --fail --silent --show-error --location \
+            --connect-timeout 10 --max-time 45 \
+            --retry 5 --retry-delay 3 --retry-all-errors \
+            -H 'User-Agent: acidentes-pe-github-backup/1.2' \
+            -H 'Accept: application/json' \
+            -o /tmp/observatrafego_response.json "$OBSERVATRAFEGO_API"
+          python - <<'PY'
           import json
           from pathlib import Path
           p=Path('/tmp/observatrafego_response.json')
@@ -63,19 +60,9 @@ jobs:
               if count==0 and any(k in payload for k in ('id','municipioNotificacao','dataHora','endereco')): count=1
           else: count=0
           print('Registros detectados no payload:', count)
-          ok=isinstance(payload,list) or isinstance(payload,dict)
-          raise SystemExit(0 if ok else 1)
+          if count < 1:
+              raise SystemExit('ERRO: API respondeu, mas não entregou registros.')
           PY
-              URL="$CANDIDATE"
-              break
-            fi
-            echo "Endpoint indisponível: $CANDIDATE"
-          done
-          if [ -z "$URL" ]; then
-            echo "ERRO: nenhum endpoint respondeu com JSON válido."
-            exit 1
-          fi
-          echo "Endpoint selecionado: $URL"
           cp /tmp/observatrafego_response.json dumps/observatrafego/.latest_response.json
 
       - name: Gerar candidato de snapshot completo
@@ -96,12 +83,11 @@ jobs:
           echo "Snapshot anterior: $OLD_COUNT registros"
           echo "Snapshot novo: $NEW_COUNT registros"
           if [ "$NEW_COUNT" -lt 1 ]; then
-            echo "ERRO: coleta normalizada sem registros. Snapshot anterior preservado."
+            echo "ERRO: conversão produziu zero registros."
             exit 1
           fi
           if [ "$OLD_COUNT" -gt 0 ] && [ "$NEW_COUNT" -lt "$OLD_COUNT" ]; then
             echo "ERRO: nova coleta tem menos registros que o snapshot anterior."
-            echo "Nenhum arquivo anterior será substituído."
             exit 1
           fi
           mv dumps/observatrafego/.observatrafego_latest_candidate.sql dumps/observatrafego/observatrafego_latest.sql
@@ -125,11 +111,10 @@ jobs:
           if [ "$NEW_DAY" -ge "$OLD_DAY" ] && [ "$NEW_DAY" -gt 0 ]; then
             mv "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" "dumps/observatrafego/observatrafego_${DAY}.sql"
           elif [ "$NEW_DAY" -eq 0 ]; then
-            echo "ERRO: nenhum registro do dia foi normalizado. Versão anterior preservada."
+            echo "ERRO: nenhum registro do dia foi normalizado."
             rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
             exit 1
           else
-            echo "Coleta diária menor que a anterior; preservando versão anterior."
             rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
           fi
 
