@@ -18,12 +18,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Gerar dump do dia
         run: |
           DAY="$(TZ=America/Recife date +%F)"
@@ -31,9 +29,7 @@ jobs:
             --url "https://observatrafego.saude.pe.gov.br/api/accidents" \
             --day "$DAY" \
             --output "dumps/observatrafego/observatrafego_${DAY}.sql"
-          cp "dumps/observatrafego/observatrafego_${DAY}.sql" \
-             "dumps/observatrafego/observatrafego_latest.sql"
-
+          cp "dumps/observatrafego/observatrafego_${DAY}.sql" "dumps/observatrafego/observatrafego_latest.sql"
       - name: Commit somente se houver alteração
         run: |
           git config user.name "github-actions[bot]"
