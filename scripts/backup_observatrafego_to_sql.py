@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Converte os registros do ObservaTrafego em um dump SQL diário.
+
+O script recebe o JSON do endpoint público /api/accidents e mantém somente
+os registros cuja dataHora pertence ao dia informado. Fotos em base64 não são
+incluídas no dump; apenas photoCount é preservado.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+from urllib.request import Request, urlopen
+
+
+def sql_value(value):
+    if value is None or value == "":
+        return "NULL"
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    text = str(value).replace("'", "''")
+    return "'" + text + "'"
+
+
+def parse_datetime(raw):
+    raw = str(raw or "").strip()
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(raw[:19], fmt)
+        except ValueError:
+            pass
+    return None
+
+
+def fetch_json(url):
+    req = Request(url, headers={"User-Agent": "acidentes-pe-github-backup/1.0"})
+    with urlopen(req, timeout=30) as response:
+        return json.load(response)
+
+
+def normalize(payload):
+    if isinstance(payload, dict) and isinstance(payload.get("records"), list):
+        return [r for r in payload["records"] if isinstance(r, dict)]
+    if isinstance(payload, list):
+        return [r for r in payload if isinstance(r, dict)]
+    return []
+
+
+def build_dump(records, day):
+    table = f"acidentes_observatrafego_{day.replace('-', '')}"
+    columns = [
+        "id", "municipio_notificacao", "nome_notificante", "endereco",
+        "veiculo_usuario", "sinistro_com_vitimas", "quantidade_vitimas",
+        "sinistro_vitimas", "equipamentos_seguranca", "latitude", "longitude",
+        "descricao", "registro_no_local_sinistro", "registro_fora_local_descricao",
+        "tempo_registro_segundos", "data_hora", "photo_count"
+    ]
+    lines = [
+        f'DROP TABLE IF EXISTS "{table}";',
+        f'CREATE TABLE "{table}" (',
+        '  "id" TEXT,',
+        '  "municipio_notificacao" TEXT,',
+        '  "nome_notificante" TEXT,',
+        '  "endereco" TEXT,',
+        '  "veiculo_usuario" TEXT,',
+        '  "sinistro_com_vitimas" TEXT,',
+        '  "quantidade_vitimas" TEXT,',
+        '  "sinistro_vitimas" TEXT,',
+        '  "equipamentos_seguranca" TEXT,',
+        '  "latitude" TEXT,',
+        '  "longitude" TEXT,',
+        '  "descricao" TEXT,',
+        '  "registro_no_local_sinistro" TEXT,',
+        '  "registro_fora_local_descricao" TEXT,',
+        '  "tempo_registro_segundos" INTEGER,',
+        '  "data_hora" TEXT,',
+        '  "photo_count" INTEGER',
+        ');',
+        ''
+    ]
+    for item in records:
+        vals = [
+            item.get("id"), item.get("municipioNotificacao"), item.get("nomeNotificante"),
+            item.get("endereco"), item.get("veiculoUsuario"), item.get("sinistroComVitimas"),
+            item.get("quantidadeVitimas"), item.get("sinistroVitimas"),
+            item.get("equipamentosSeguranca"), item.get("latitude"), item.get("longitude"),
+            item.get("descricao"), item.get("registroNoLocalSinistro"),
+            item.get("registroForaLocalDescricao"), item.get("tempoRegistroSegundos", 0),
+            item.get("dataHora"), item.get("photoCount", len(item.get("fotos", [])) if isinstance(item.get("fotos"), list) else 0)
+        ]
+        lines.append(
+            f'INSERT INTO "{table}" ({", ".join(chr(34)+c+chr(34) for c in columns)}) '
+            f'VALUES ({", ".join(sql_value(v) for v in vals)});'
+        )
+    lines.append("COMMIT;")
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--day", required=True, help="YYYY-MM-DD")
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+
+    payload = fetch_json(args.url)
+    records = normalize(payload)
+    selected = [r for r in records if (parse_datetime(r.get("dataHora")) or datetime.min).strftime("%Y-%m-%d") == args.day]
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(build_dump(selected, args.day), encoding="utf-8")
+    print(f"Registros totais recebidos: {len(records)}")
+    print(f"Registros do dia {args.day}: {len(selected)}")
+    print(f"Dump: {output}")
+
+
+if __name__ == "__main__":
+    main()
