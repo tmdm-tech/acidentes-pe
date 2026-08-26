@@ -3,16 +3,30 @@ from __future__ import annotations
 import argparse, json
 from pathlib import Path
 
+CONTAINER_KEYS = ('records', 'data', 'accidents', 'items', 'results', 'ocorrencias', 'acidentes')
+
 def sql_value(value):
     if value is None or value == "": return "NULL"
     if isinstance(value, bool): return "TRUE" if value else "FALSE"
     return "'" + str(value).replace("'", "''") + "'"
 
 def normalize(payload):
-    if isinstance(payload, dict) and isinstance(payload.get('records'), list):
-        return [r for r in payload['records'] if isinstance(r, dict)]
+    """Aceita lista direta e envelopes comuns retornados pela API."""
     if isinstance(payload, list):
         return [r for r in payload if isinstance(r, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in CONTAINER_KEYS:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [r for r in value if isinstance(r, dict)]
+        if isinstance(value, dict):
+            nested = normalize(value)
+            if nested:
+                return nested
+    # Alguns endpoints devolvem um único registro dentro do envelope.
+    if any(k in payload for k in ('id', 'municipioNotificacao', 'dataHora', 'endereco')):
+        return [payload]
     return []
 
 def build_dump(records):
@@ -55,6 +69,9 @@ def main():
     p=argparse.ArgumentParser(); p.add_argument('--input',required=True); p.add_argument('--output',required=True); a=p.parse_args()
     payload=json.loads(Path(a.input).read_text(encoding='utf-8'))
     records=normalize(payload)
+    print(f'Tipo de resposta: {type(payload).__name__}')
+    if isinstance(payload, dict): print(f'Chaves de topo: {sorted(payload.keys())}')
+    print(f'Registros normalizados: {len(records)}')
     out=Path(a.output); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(build_dump(records),encoding='utf-8')
     print(f'Registros preservados no snapshot: {len(records)}')
     print(f'Dump: {out}')
