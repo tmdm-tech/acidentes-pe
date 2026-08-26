@@ -8,15 +8,15 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DB_HOST
-        value: "10.16.56.47"
+        sync: false
       - key: DB_PORT
         value: "5432"
       - key: DB_USER
-        value: ""
+        sync: false
       - key: DB_PASSWORD
-        value: ""
+        sync: false
       - key: DB_NAME
-        value: ""
+        sync: false
       - key: POSTGRES_TABLE
         value: "public.acidentes"
       - key: POSTGRES_BOOTSTRAP_LOCAL
@@ -24,15 +24,7 @@ services:
       - key: DATA_DIR
         value: /var/data
       - key: REQUIRE_PERSISTENT_STORAGE
-        value: "false"
-      - key: SUPABASE_STORAGE_SYNC_ENABLED
-        value: "false"
-      - key: SUPABASE_STORAGE_BUCKET
-        value: ""
-      - key: SUPABASE_STORAGE_PREFIX
-        value: "observa-backup"
-      - key: SUPABASE_STORAGE_SYNC_INTERVAL_SECONDS
-        value: "300"
+        value: "true"
     disk:
       name: acidentes-pe-data
       mountPath: /var/data
