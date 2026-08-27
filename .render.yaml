@@ -8,15 +8,15 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DB_HOST
-        value: "saude.pe.gov.br"
+        value: "10.16.56.47"
       - key: DB_PORT
         value: "5432"
       - key: DB_USER
-        sync: false
+        value: "sinatt"
       - key: DB_PASSWORD
         sync: false
       - key: DB_NAME
-        sync: false
+        value: "sinatt"
       - key: POSTGRES_TABLE
         value: "public.acidentes"
       - key: POSTGRES_BOOTSTRAP_LOCAL
