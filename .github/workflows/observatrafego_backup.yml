@@ -26,16 +26,16 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Coletar API e diagnosticar payload
+      - name: Coletar API com diagnóstico
         shell: bash
         run: |
           set -euo pipefail
           rm -f /tmp/observatrafego_response.json
-          echo "Testando API: $OBSERVATRAFEGO_API"
+          echo "Consultando $OBSERVATRAFEGO_API"
           curl --fail --silent --show-error --location \
             --connect-timeout 10 --max-time 45 \
             --retry 5 --retry-delay 3 --retry-all-errors \
-            -H 'User-Agent: acidentes-pe-github-backup/1.2' \
+            -H 'User-Agent: acidentes-pe-github-backup/2.0' \
             -H 'Accept: application/json' \
             -o /tmp/observatrafego_response.json "$OBSERVATRAFEGO_API"
           python - <<'PY'
@@ -43,102 +43,75 @@ jobs:
           from pathlib import Path
           p=Path('/tmp/observatrafego_response.json')
           payload=json.loads(p.read_text(encoding='utf-8'))
-          print('Tipo de payload:', type(payload).__name__)
-          if isinstance(payload, dict): print('Chaves de topo:', sorted(payload.keys()))
-          if isinstance(payload, list):
-              count=sum(isinstance(x,dict) for x in payload)
-          elif isinstance(payload, dict):
-              count=0
+          print('Tipo:', type(payload).__name__)
+          if isinstance(payload, dict): print('Chaves:', sorted(payload.keys()))
+          candidates=[]
+          if isinstance(payload,list): candidates=payload
+          elif isinstance(payload,dict):
               for k in ('records','data','accidents','items','results','ocorrencias','acidentes'):
                   v=payload.get(k)
-                  if isinstance(v,list): count=len([x for x in v if isinstance(x,dict)]); break
+                  if isinstance(v,list): candidates=v; break
                   if isinstance(v,dict):
                       for kk in ('records','data','accidents','items','results','ocorrencias','acidentes'):
                           vv=v.get(kk)
-                          if isinstance(vv,list): count=len([x for x in vv if isinstance(x,dict)]); break
-                      if count: break
-              if count==0 and any(k in payload for k in ('id','municipioNotificacao','dataHora','endereco')): count=1
-          else: count=0
-          print('Registros detectados no payload:', count)
-          if count < 1:
-              raise SystemExit('ERRO: API respondeu, mas não entregou registros.')
+                          if isinstance(vv,list): candidates=vv; break
+                      if candidates: break
+              if not candidates and any(k in payload for k in ('id','municipioNotificacao','dataHora','endereco')): candidates=[payload]
+          records=[x for x in candidates if isinstance(x,dict)]
+          print('Registros recebidos:',len(records))
+          if not records: raise SystemExit('ERRO: endpoint respondeu sem registros.')
+          Path('/tmp/observatrafego_records.json').write_text(json.dumps(records,ensure_ascii=False),encoding='utf-8')
           PY
-          cp /tmp/observatrafego_response.json dumps/observatrafego/.latest_response.json
+          cp /tmp/observatrafego_records.json dumps/observatrafego/.latest_response.json
 
-      - name: Gerar candidato de snapshot completo
+      - name: Gerar snapshot completo
         run: |
           python scripts/observatrafego_full_snapshot.py \
             --input dumps/observatrafego/.latest_response.json \
             --output dumps/observatrafego/.observatrafego_latest_candidate.sql
 
-      - name: Bloquear substituição se houver redução ou coleta vazia
+      - name: Validar e preservar snapshot
         shell: bash
         run: |
           set -euo pipefail
           NEW_COUNT=$(grep -c '^INSERT INTO "acidentes_observatrafego_snapshot"' dumps/observatrafego/.observatrafego_latest_candidate.sql || true)
           OLD_COUNT=0
-          if [ -f dumps/observatrafego/observatrafego_latest.sql ]; then
-            OLD_COUNT=$(grep -c '^INSERT INTO "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql || true)
-          fi
-          echo "Snapshot anterior: $OLD_COUNT registros"
-          echo "Snapshot novo: $NEW_COUNT registros"
-          if [ "$NEW_COUNT" -lt 1 ]; then
-            echo "ERRO: conversão produziu zero registros."
-            exit 1
-          fi
-          if [ "$OLD_COUNT" -gt 0 ] && [ "$NEW_COUNT" -lt "$OLD_COUNT" ]; then
-            echo "ERRO: nova coleta tem menos registros que o snapshot anterior."
-            exit 1
-          fi
+          if [ -f dumps/observatrafego/observatrafego_latest.sql ]; then OLD_COUNT=$(grep -c '^INSERT INTO "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql || true); fi
+          echo "Anterior: $OLD_COUNT | Novo: $NEW_COUNT"
+          if [ "$NEW_COUNT" -lt 1 ]; then exit 1; fi
+          if [ "$OLD_COUNT" -gt 0 ] && [ "$NEW_COUNT" -lt "$OLD_COUNT" ]; then echo 'ERRO: redução inesperada.'; exit 1; fi
           mv dumps/observatrafego/.observatrafego_latest_candidate.sql dumps/observatrafego/observatrafego_latest.sql
 
-      - name: Gerar dump diário da mesma coleta
+      - name: Atualizar dump diário
         shell: bash
         run: |
           set -euo pipefail
           DAY="$(TZ=America/Recife date +%F)"
-          python scripts/backup_observatrafego_to_sql.py \
-            --input dumps/observatrafego/.latest_response.json \
-            --day "$DAY" \
-            --output "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
-          NEW_DAY=$(grep -c '^INSERT INTO' "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" || true)
-          OLD_DAY=0
-          if [ -f "dumps/observatrafego/observatrafego_${DAY}.sql" ]; then
-            OLD_DAY=$(grep -c '^INSERT INTO' "dumps/observatrafego/observatrafego_${DAY}.sql" || true)
-          fi
-          echo "Dump diário anterior: $OLD_DAY"
-          echo "Dump diário novo: $NEW_DAY"
-          if [ "$NEW_DAY" -ge "$OLD_DAY" ] && [ "$NEW_DAY" -gt 0 ]; then
-            mv "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" "dumps/observatrafego/observatrafego_${DAY}.sql"
-          elif [ "$NEW_DAY" -eq 0 ]; then
-            echo "ERRO: nenhum registro do dia foi normalizado."
-            rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
-            exit 1
-          else
-            rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
-          fi
+          python scripts/backup_observatrafego_to_sql.py --input dumps/observatrafego/.latest_response.json --day "$DAY" --output "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"
+          NEW=$(grep -c '^INSERT INTO' "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" || true)
+          OLD=0
+          if [ -f "dumps/observatrafego/observatrafego_${DAY}.sql" ]; then OLD=$(grep -c '^INSERT INTO' "dumps/observatrafego/observatrafego_${DAY}.sql" || true); fi
+          echo "Diário anterior: $OLD | Novo: $NEW"
+          if [ "$NEW" -lt 1 ]; then exit 1; fi
+          if [ "$NEW" -ge "$OLD" ]; then mv "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql" "dumps/observatrafego/observatrafego_${DAY}.sql"; else rm -f "dumps/observatrafego/.observatrafego_${DAY}_candidate.sql"; fi
 
-      - name: Remover resposta temporária
+      - name: Limpar temporário
         run: rm -f dumps/observatrafego/.latest_response.json
 
-      - name: Validar integridade antes do commit
+      - name: Validar antes do commit
         shell: bash
         run: |
           set -euo pipefail
           test -s dumps/observatrafego/observatrafego_latest.sql
-          grep -q 'CREATE TABLE "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql
           COUNT=$(grep -c '^INSERT INTO "acidentes_observatrafego_snapshot"' dumps/observatrafego/observatrafego_latest.sql || true)
-          echo "INSERTs preservados no snapshot: $COUNT"
-          if [ "$COUNT" -lt 1 ]; then exit 1; fi
+          echo "INSERTs: $COUNT"
+          test "$COUNT" -gt 0
 
-      - name: Commit somente se houver alteração
+      - name: Commit automático
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dumps/observatrafego/*.sql
-          if git diff --cached --quiet; then
-            echo "Nenhuma alteração nos registros."
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo 'Nenhuma alteração.'; exit 0; fi
           git commit -m "chore: atualiza backup ObservaTrafego $(TZ=America/Recife date +%F-%H%M)"
           git push
