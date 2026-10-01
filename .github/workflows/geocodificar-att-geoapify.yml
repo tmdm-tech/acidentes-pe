@@ -1,0 +1,31 @@
+name: Geocodificar ATT com Geoapify
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_file:
+        description: 'Caminho do XLSX no repositório'
+        required: true
+        default: 'ATT_VIVA_SES_ObservaATT_11.09.26 (1).xlsx'
+
+permissions:
+  contents: read
+
+jobs:
+  geocodificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pandas openpyxl requests
+      - name: Geocodificar endereços
+        env:
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+        run: python scripts/geocodificar_att_geoapify.py "${{ inputs.input_file }}" --output outputs/ATT_geocodificado_geoapify.xlsx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ATT-geocodificado-Geoapify
+          path: outputs/ATT_geocodificado_geoapify.xlsx
+          retention-days: 14
