@@ -6,7 +6,7 @@ on:
       input_file:
         description: 'Caminho do XLSX no repositório'
         required: true
-        default: 'ATT_VIVA_SES_ObservaATT_11.09.26 (1).xlsx'
+        default: 'ATT_VIVA_SES_ObservaATT_11.09.26 (1) (1).xlsx'
 
 permissions:
   contents: read
@@ -14,12 +14,18 @@ permissions:
 jobs:
   geocodificar:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: pip install pandas openpyxl requests
+      - name: Validar secret Geoapify
+        env:
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+        run: |
+          test -n "$GEOAPIFY_API_KEY" || (echo "GEOAPIFY_API_KEY ausente" && exit 1)
       - name: Geocodificar endereços
         env:
           GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
